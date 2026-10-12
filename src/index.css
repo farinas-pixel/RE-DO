@@ -331,21 +331,50 @@ body {
   font-size: 1.0625rem;
 }
 
-/* ==============================================================================
-   PROCEDURAL CRYSTAL ORB CANVAS WRAPPER
-   ============================================================================== */
+.splash-lighting-glow {
+  position: absolute;
+  top: 25%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.35) 0%, rgba(192, 132, 252, 0.18) 50%, transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
 
-.crystal-orb-wrapper {
+.splash-orb-frame {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto;
+  margin-bottom: 1.5rem;
+  z-index: 1;
 }
 
+/* ==============================================================================
+   PROCEDURAL CRYSTAL ORB CANVAS WRAPPER
+   ============================================================================== */
+
+.crystal-orb-wrapper,
+.crystal-orb-webgl-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.crystal-orb-webgl-wrapper canvas,
 .crystal-orb-canvas {
   display: block;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  max-width: 100%;
+  height: auto;
 }
 
 /* ==============================================================================
