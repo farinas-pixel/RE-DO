@@ -17,6 +17,7 @@ import type { Scenario, ScenarioCategory, DifficultyLevel } from '@/types/databa
 import { getScenarioTheme } from '@/lib/scenarioThemes';
 import { GuidedSetupModal, type SetupConfiguration } from '@/components/GuidedSetupModal';
 import { ScenarioDetailsModal } from '@/components/ScenarioDetailsModal';
+import { CrystalBall } from '@/components/CrystalBall';
 
 const CATEGORIES: ScenarioCategory[] = [
   'Career & Jobs',
@@ -178,6 +179,60 @@ export function ScenarioCataloguePage() {
           </div>
         </div>
       </header>
+
+      {/* Interactive Selectable 3D Crystal Balls Strip */}
+      <section className="universe-3d-spheres-tray" aria-label="Interactive 3D Scenario Spheres">
+        <div className="spheres-scroll-row">
+          <CrystalBall
+            id="All"
+            label="All Realms"
+            colorTop="#f472b6"
+            colorBottom="#c084fc"
+            selected={selectedCategory === 'All'}
+            onSelect={() => setSelectedCategory('All')}
+          />
+          <CrystalBall
+            id="Career & Jobs"
+            label="Career"
+            colorTop="#38bdf8"
+            colorBottom="#6366f1"
+            selected={selectedCategory === 'Career & Jobs'}
+            onSelect={() => setSelectedCategory('Career & Jobs')}
+          />
+          <CrystalBall
+            id="Education"
+            label="Education"
+            colorTop="#a855f7"
+            colorBottom="#4338ca"
+            selected={selectedCategory === 'Education'}
+            onSelect={() => setSelectedCategory('Education')}
+          />
+          <CrystalBall
+            id="Business & Startups"
+            label="Business"
+            colorTop="#ec4899"
+            colorBottom="#be185d"
+            selected={selectedCategory === 'Business & Startups'}
+            onSelect={() => setSelectedCategory('Business & Startups')}
+          />
+          <CrystalBall
+            id="Social & Communication"
+            label="Social"
+            colorTop="#34d399"
+            colorBottom="#059669"
+            selected={selectedCategory === 'Social & Communication'}
+            onSelect={() => setSelectedCategory('Social & Communication')}
+          />
+          <CrystalBall
+            id="Everyday Life"
+            label="Everyday"
+            colorTop="#fbbf24"
+            colorBottom="#d97706"
+            selected={selectedCategory === 'Everyday Life'}
+            onSelect={() => setSelectedCategory('Everyday Life')}
+          />
+        </div>
+      </section>
 
       {/* Main Categories Navigation Bar */}
       <nav className="universe-categories-nav" aria-label="Scenario categories">
