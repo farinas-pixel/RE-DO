@@ -2304,11 +2304,56 @@ body {
   .global-app-header .header-nav-menu {
     display: none;
   }
+  .global-app-header {
+    height: 58px;
+    padding: 0 1rem;
+  }
+  .brand-logo-text {
+    font-size: 1.35rem;
+  }
+  .brand-tagline-mini {
+    display: none;
+  }
   .android-bottom-bar {
     display: block;
+    height: calc(64px + env(safe-area-inset-bottom, 0px));
   }
   .app-content-body {
-    padding-bottom: 70px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .hub-3d-page {
+    padding: 1rem 1rem calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .hub-hero-stage {
+    grid-template-columns: 1fr;
+    text-align: center;
+    padding: 1.5rem 1rem;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .hub-welcome-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .hub-hero-title {
+    font-size: 1.65rem;
+    line-height: 1.25;
+    margin-bottom: 0.75rem;
+  }
+  .hub-hero-subtitle {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 1.25rem;
+  }
+  .hub-cta-button-row {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.75rem;
+  }
+  .hub-cta-button-row .btn {
+    width: 100%;
+    justify-content: center;
   }
   .cockpit-grid-container {
     grid-template-columns: 1fr;
@@ -2316,11 +2361,6 @@ body {
   }
   .cockpit-left-region, .cockpit-right-region {
     display: none;
-  }
-  .hub-hero-stage {
-    grid-template-columns: 1fr;
-    text-align: center;
-    padding: 2rem 1rem;
   }
   .hub-dashboard-matrix, .curated-preview-grid {
     grid-template-columns: 1fr;

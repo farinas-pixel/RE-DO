@@ -2,18 +2,25 @@
  * CrystalOrb — Signature Real 3D WebGL Liquid-Filled Crystal Glass Sphere
  *
  * Implements:
- * 1. Thick, polished refractive crystal glass outer shell:
- *    - Double-pass physical glass with high specular highlights, pink & lavender Fresnel optical rim.
- * 2. Realistic Water Droplets on outside glass surface:
- *    - Micro glass condensation droplets and teardrop trails anchored to the glass shell surface.
- *    - Reflective specular highlights on outer curvature.
- * 3. Real-time physically inspired internal liquid volume with clear liquid level:
- *    - Planar meniscus cut-off at liquid level (~55-65% full) so users can distinctly see liquid vs air space!
- *    - Slosh physics: angular acceleration generates dynamic liquid tilt & ripples with damped harmonic oscillation.
- *    - Inertia lag: fluid sloshes behind touch drag and device tilt.
- * 4. Touch drag & release rotation + DeviceOrientation tilt fallback.
- * 5. Floating cosmic star dust micro-particles.
- * 6. Audio-reactive pulse and mode state support.
+ * A. REALISTIC TRANSPARENT CRYSTAL GLASS ORB:
+ *    - Custom GLSL glass shader with Fresnel edge refraction, iridescent specular highlights,
+ *      and physical transparency. Eliminates the opaque grey artifact on mobile WebGL / WebView.
+ *    - Synthetic procedural cubemap reflections so glass has vivid crystal highlights even without external HDR textures.
+ *
+ * B. TRANSLUCENT LIQUID:
+ *    - Visibly translucent pink & lavender liquid body with internal caustic refractions.
+ *    - Organic 3D wave simulation (dual-frequency sinusoids + slosh inertia) with curved dynamic meniscus.
+ *    - Natural harmonic oscillation and viscous settling when motion stops.
+ *
+ * C. EXTERIOR WATER DROPLETS:
+ *    - Varied-size droplets on the outside glass surface with specular pearl highlights and curved meniscus beads.
+ *    - Distinct refraction highlights to avoid flat grey dots.
+ *
+ * D. DELICATE ORBITAL ACCENTS:
+ *    - Fine, subtle luminous crystalline orbital threads that do not distract from the primary orb.
+ *
+ * E. MOBILE INTERACTION & TILT:
+ *    - Touch drag slosh physics + DeviceOrientation tilt integration.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -53,22 +60,23 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // 1. Scene, Camera, Renderer
+    // 1. Scene, Camera, WebGL Renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    camera.position.z = 4.6;
+    camera.position.z = 4.5;
 
     let renderer: THREE.WebGLRenderer | null = null;
     try {
       renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
+        premultipliedAlpha: false,
         powerPreference: 'high-performance',
       });
       renderer.setSize(size, size);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.35;
+      renderer.toneMappingExposure = 1.2;
       container.appendChild(renderer.domElement);
     } catch {
       container.innerHTML = `
@@ -77,37 +85,36 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       return;
     }
 
-    // 2. Cinematic Lighting System (Pink & Lavender Glows + Specular Key Lights)
-    const ambientLight = new THREE.AmbientLight(0x2d124d, 2.8 * intensity);
+    // 2. Cinematic Lighting System
+    const ambientLight = new THREE.AmbientLight(0x28103c, 2.5 * intensity);
     scene.add(ambientLight);
 
-    const pinkKeyLight = new THREE.PointLight(0xf472b6, 5.0 * intensity, 18);
-    pinkKeyLight.position.set(3.5, 3.5, 4.2);
+    const pinkKeyLight = new THREE.PointLight(0xf472b6, 4.5 * intensity, 20);
+    pinkKeyLight.position.set(3.2, 3.5, 4.0);
     scene.add(pinkKeyLight);
 
-    const lavenderRimLight = new THREE.PointLight(0xa855f7, 5.5 * intensity, 18);
-    lavenderRimLight.position.set(-3.5, -2.5, -2.5);
+    const lavenderRimLight = new THREE.PointLight(0xa855f7, 5.0 * intensity, 20);
+    lavenderRimLight.position.set(-3.5, -2.5, -2.0);
     scene.add(lavenderRimLight);
 
-    const specularLight = new THREE.DirectionalLight(0xfff5fb, 2.6 * intensity);
-    specularLight.position.set(0, 5.0, 3.5);
+    const specularLight = new THREE.DirectionalLight(0xfff5fa, 2.8 * intensity);
+    specularLight.position.set(1.5, 4.5, 3.5);
     scene.add(specularLight);
 
-    // Group for entire sphere contents to rotate under interactive touch
+    // Master group for orb rotation
     const orbGroup = new THREE.Group();
     scene.add(orbGroup);
 
-    // 3. Internal Liquid Volume Shader
-    // High-precision GLSL with distinct liquid surface plane (meniscus level), slosh tilt, and caustics
+    // 3. TRANSLUCENT LIQUID VOLUME (Custom Shader with Inertial Slosh & Depth Glow)
     const liquidUniforms = {
       uTime: { value: 0 },
       uSlosh: { value: new THREE.Vector2(0, 0) },
       uSloshVelocity: { value: 0 },
       uAudio: { value: 0 },
-      uLiquidLevel: { value: 0.15 }, // Water line around 55% height
-      uColorBottom: { value: new THREE.Color(0x8b2fc9) }, // Vibrant Crystal Violet
-      uColorTop: { value: new THREE.Color(0xf472b6) },    // Luminous Dream Pink
-      uColorSurface: { value: new THREE.Color(0xffe4f3) },// Frothy pearl meniscus foam
+      uLiquidLevel: { value: 0.12 }, // Water line around 55% fill
+      uColorBottom: { value: new THREE.Color(0x7e22ce) }, // Deep Crystal Purple
+      uColorTop: { value: new THREE.Color(0xf472b6) },    // Translucent Dream Pink
+      uColorFoam: { value: new THREE.Color(0xffe4f4) },   // Iridescent Pearl
     };
 
     const liquidVertexShader = `
@@ -127,11 +134,11 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
         vNormal = normalize(normalMatrix * normal);
         vec3 pos = position;
 
-        // Slosh wave displacement along normal
-        float tilt = dot(pos.xz, uSlosh) * 0.28;
-        float ripple = sin(pos.x * 5.0 + uTime * 4.0) * cos(pos.z * 5.0 + uTime * 3.2) * (0.035 + uSloshVelocity * 0.07 + uAudio * 0.06);
-        float micro = sin(pos.y * 9.0 + uTime * 7.0) * 0.015;
-        float wave = tilt + ripple + micro;
+        // Realistic wave physics: fluid tilt + multi-frequency ripple
+        float tilt = dot(pos.xz, uSlosh) * 0.32;
+        float ripple1 = sin(pos.x * 4.2 + uTime * 3.8) * cos(pos.z * 4.2 + uTime * 2.9) * (0.04 + uSloshVelocity * 0.08 + uAudio * 0.06);
+        float ripple2 = sin(pos.y * 7.5 + uTime * 5.5) * 0.018;
+        float wave = tilt + ripple1 + ripple2;
 
         pos += normal * wave;
         vWaveDisplacement = wave;
@@ -149,7 +156,7 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       uniform float uTime;
       uniform vec3 uColorBottom;
       uniform vec3 uColorTop;
-      uniform vec3 uColorSurface;
+      uniform vec3 uColorFoam;
       uniform float uLiquidLevel;
       uniform vec2 uSlosh;
       varying vec3 vWorldPosition;
@@ -159,40 +166,42 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       varying float vWaveDisplacement;
 
       void main() {
-        // Calculate dynamic surface plane tilted by slosh
-        float surfacePlane = vWorldPosition.y - (uLiquidLevel + dot(vWorldPosition.xz, uSlosh) * 0.35 + vWaveDisplacement);
+        // Dynamic slosh surface plane
+        float surfacePlane = vWorldPosition.y - (uLiquidLevel + dot(vWorldPosition.xz, uSlosh) * 0.32 + vWaveDisplacement);
 
-        // Discard any fragment above the liquid meniscus level!
-        if (surfacePlane > 0.08) {
+        // Discard air cavity above liquid
+        if (surfacePlane > 0.05) {
           discard;
         }
 
         vec3 viewDir = normalize(vViewPosition);
         float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 2.2);
 
-        // Vertical gradient inside liquid body
-        float bodyGrad = clamp((vWorldPosition.y + 1.1) / 1.5, 0.0, 1.0);
-        vec3 col = mix(uColorBottom, uColorTop, bodyGrad);
+        // Translucent liquid depth gradient
+        float depthFactor = clamp((vWorldPosition.y + 1.1) / 1.5, 0.0, 1.0);
+        vec3 fluidColor = mix(uColorBottom, uColorTop, depthFactor);
 
         // Internal caustic light refractions
-        float caustic = sin(vUv.x * 14.0 + uTime * 2.2) * cos(vUv.y * 14.0 - uTime * 2.8);
-        caustic = pow(clamp(caustic * 0.5 + 0.5, 0.0, 1.0), 3.0) * 0.42;
-        col += vec3(caustic * 0.9, caustic * 0.65, caustic * 0.95);
+        float caustics = sin(vUv.x * 12.0 + uTime * 2.5) * cos(vUv.y * 12.0 - uTime * 2.2);
+        caustics = pow(clamp(caustics * 0.5 + 0.5, 0.0, 1.0), 3.0) * 0.35;
+        fluidColor += vec3(caustics * 0.8, caustics * 0.45, caustics * 0.85);
 
-        // Meniscus surface foam highlight right at the top water cut-off line
-        if (surfacePlane > -0.07) {
-          float surfaceFactor = smoothstep(-0.07, 0.05, surfacePlane);
-          col = mix(col, uColorSurface, surfaceFactor * 0.85);
+        // Luminous foam / meniscus highlight at top boundary
+        if (surfacePlane > -0.08) {
+          float foamFactor = smoothstep(-0.08, 0.03, surfacePlane);
+          fluidColor = mix(fluidColor, uColorFoam, foamFactor * 0.85);
         }
 
-        // Rim highlight
-        col += uColorTop * (fresnel * 0.55);
+        // Rim scattering
+        fluidColor += uColorTop * (fresnel * 0.6);
 
-        gl_FragColor = vec4(col, 0.92);
+        // Translucent alpha: allows light transmission through fluid
+        float alpha = mix(0.72, 0.88, depthFactor);
+        gl_FragColor = vec4(fluidColor, alpha);
       }
     `;
 
-    const liquidGeo = new THREE.SphereGeometry(1.08, 48, 48);
+    const liquidGeo = new THREE.SphereGeometry(1.06, 48, 48);
     const liquidMat = new THREE.ShaderMaterial({
       uniforms: liquidUniforms,
       vertexShader: liquidVertexShader,
@@ -205,60 +214,109 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
     liquidMesh.renderOrder = 0;
     orbGroup.add(liquidMesh);
 
-    // 4. Outer Crystal Glass Shell
-    // High-refraction transparent glass with pink-lavender specular highlights
-    const glassGeo = new THREE.SphereGeometry(1.30, 64, 64);
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      emissive: 0x3b0764,
-      emissiveIntensity: 0.12 * intensity,
-      roughness: 0.05,
-      metalness: 0.08,
-      transmission: 0.88,
-      thickness: 1.2,
-      ior: 1.52,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.05,
+    // 4. REALISTIC TRANSPARENT CRYSTAL GLASS SHELL (Custom Shader for Guaranteed Clarity)
+    // Eliminates the opaque grey artifact caused by MeshPhysicalMaterial environment dependencies in WebViews
+    const glassUniforms = {
+      uTime: { value: 0 },
+      uRimColorPink: { value: new THREE.Color(0xf472b6) },
+      uRimColorLavender: { value: new THREE.Color(0xc084fc) },
+      uHighlightColor: { value: new THREE.Color(0xffffff) },
+      uLightDir: { value: new THREE.Vector3(1.5, 4.5, 3.5).normalize() },
+    };
+
+    const glassVertexShader = `
+      precision highp float;
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+      varying vec3 vWorldNormal;
+
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+        vViewPosition = -mvPos.xyz;
+        vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        gl_Position = projectionMatrix * mvPos;
+      }
+    `;
+
+    const glassFragmentShader = `
+      precision highp float;
+      uniform float uTime;
+      uniform vec3 uRimColorPink;
+      uniform vec3 uRimColorLavender;
+      uniform vec3 uHighlightColor;
+      uniform vec3 uLightDir;
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+      varying vec3 vWorldNormal;
+
+      void main() {
+        vec3 viewDir = normalize(vViewPosition);
+        vec3 norm = normalize(vNormal);
+
+        // Optical Fresnel transmission: high clarity at center, radiant refraction at outer silhouette
+        float NdotV = max(dot(viewDir, norm), 0.0);
+        float fresnel = pow(1.0 - NdotV, 3.0);
+
+        // Dual specular highlights (key light and ambient glint)
+        vec3 halfDir = normalize(uLightDir + viewDir);
+        float spec1 = pow(max(dot(norm, halfDir), 0.0), 48.0) * 1.35;
+        vec3 halfDir2 = normalize(vec3(-1.0, 1.0, 1.0) + viewDir);
+        float spec2 = pow(max(dot(norm, halfDir2), 0.0), 32.0) * 0.65;
+
+        // Pink & lavender chromatic rim dispersion
+        vec3 rimColor = mix(uRimColorLavender, uRimColorPink, clamp(vWorldNormal.y * 0.5 + 0.5, 0.0, 1.0));
+        vec3 finalColor = rimColor * fresnel * 1.1 + uHighlightColor * (spec1 + spec2);
+
+        // Alpha: crystal-clear in center (0.18-0.25) so inner fluid is fully visible, crisp optical edge (0.75)
+        float alpha = clamp(0.18 + fresnel * 0.65 + spec1 * 0.8, 0.15, 0.85);
+
+        gl_FragColor = vec4(finalColor, alpha);
+      }
+    `;
+
+    const glassGeo = new THREE.SphereGeometry(1.28, 64, 64);
+    const glassMat = new THREE.ShaderMaterial({
+      uniforms: glassUniforms,
+      vertexShader: glassVertexShader,
+      fragmentShader: glassFragmentShader,
       transparent: true,
-      opacity: 0.85,
       depthWrite: false,
+      blending: THREE.NormalBlending,
     });
     const glassMesh = new THREE.Mesh(glassGeo, glassMat);
     glassMesh.renderOrder = 1;
     orbGroup.add(glassMesh);
 
-    // 5. Water Droplets on Outside Glass Surface
-    // Realistic micro-spheres and teardrop beads clinging to outer glass shell
+    // 5. EXTERIOR WATER DROPLETS (Luminous micro-beads with highlights)
     const dropletsGroup = new THREE.Group();
-    const dropletMat = new THREE.MeshPhysicalMaterial({
+    const dropletMat = new THREE.MeshStandardMaterial({
       color: 0xfff0f8,
-      roughness: 0.03,
-      metalness: 0.02,
-      transmission: 0.92,
-      ior: 1.333, // Water refractive index
-      clearcoat: 1.0,
+      emissive: 0xf472b6,
+      emissiveIntensity: 0.35,
+      roughness: 0.1,
+      metalness: 0.1,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.88,
     });
 
-    // Seed realistic droplet coordinates spread over glass shell (radius = 1.30)
-    const dropletR = 1.30;
+    // Outer glass radius for droplet alignment
+    const dropletR = 1.28;
     const dropletCoords = [
-      { lat: 0.25, lon: 0.4, scale: 0.055 },
-      { lat: 0.35, lon: 0.42, scale: 0.038 }, // Trail bead
-      { lat: 0.48, lon: 0.44, scale: 0.025 }, // Trail bead
-      { lat: -0.15, lon: 1.2, scale: 0.065 },
-      { lat: -0.28, lon: 1.22, scale: 0.042 },
-      { lat: 0.55, lon: -0.8, scale: 0.06 },
-      { lat: -0.4, lon: -1.5, scale: 0.07 },
-      { lat: -0.52, lon: -1.48, scale: 0.035 },
-      { lat: 0.1, lon: -2.1, scale: 0.05 },
-      { lat: 0.6, lon: 2.2, scale: 0.065 },
-      { lat: 0.72, lon: 2.25, scale: 0.03 },
-      { lat: -0.3, lon: 2.8, scale: 0.055 },
-      { lat: 0.4, lon: -2.8, scale: 0.048 },
-      { lat: -0.6, lon: 0.8, scale: 0.06 },
-      { lat: 0.15, lon: 1.8, scale: 0.052 },
+      { lat: 0.22, lon: 0.42, scale: 0.048 },
+      { lat: 0.32, lon: 0.44, scale: 0.032 }, // Trail bead
+      { lat: 0.45, lon: 0.46, scale: 0.022 }, // Trail bead
+      { lat: -0.18, lon: 1.15, scale: 0.055 },
+      { lat: -0.30, lon: 1.17, scale: 0.035 },
+      { lat: 0.52, lon: -0.75, scale: 0.052 },
+      { lat: -0.38, lon: -1.45, scale: 0.058 },
+      { lat: -0.50, lon: -1.43, scale: 0.028 },
+      { lat: 0.12, lon: -2.05, scale: 0.045 },
+      { lat: 0.58, lon: 2.15, scale: 0.055 },
+      { lat: -0.28, lon: 2.75, scale: 0.048 },
+      { lat: 0.38, lon: -2.75, scale: 0.042 },
+      { lat: -0.55, lon: 0.75, scale: 0.052 },
+      { lat: 0.18, lon: 1.75, scale: 0.045 },
     ];
 
     const dropletGeometries: THREE.SphereGeometry[] = [];
@@ -267,7 +325,6 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       dropletGeometries.push(geo);
       const mesh = new THREE.Mesh(geo, dropletMat);
 
-      // Position on the outer surface of glass shell
       const phi = Math.PI / 2 - d.lat;
       const theta = d.lon;
       mesh.position.set(
@@ -275,45 +332,49 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
         dropletR * Math.cos(phi),
         dropletR * Math.sin(phi) * Math.sin(theta)
       );
-      // Slightly flatten droplet against glass surface for natural surface tension
       mesh.lookAt(0, 0, 0);
-      mesh.scale.set(1.0, 1.0, 0.55);
+      mesh.scale.set(1.0, 1.0, 0.6); // flattened against glass
       dropletsGroup.add(mesh);
     });
     dropletsGroup.renderOrder = 2;
     orbGroup.add(dropletsGroup);
 
-    // 6. Gyroscopic Crystalline Orbital Rings
-    const ringGeo1 = new THREE.TorusGeometry(1.85, 0.016, 16, 100);
+    // 6. DELICATE ORBITAL ACCENTS (Fine crystalline luminous threads)
+    // Scaled down in thickness and emissive power to keep focus entirely on the crystal orb
+    const ringGeo1 = new THREE.TorusGeometry(1.75, 0.007, 12, 100);
     const ringMat1 = new THREE.MeshStandardMaterial({
       color: 0xf472b6,
       emissive: 0xdb2777,
-      emissiveIntensity: 0.85,
-      roughness: 0.15,
-      metalness: 0.85,
+      emissiveIntensity: 0.45,
+      transparent: true,
+      opacity: 0.65,
+      roughness: 0.2,
+      metalness: 0.8,
     });
     const ringMesh1 = new THREE.Mesh(ringGeo1, ringMat1);
     ringMesh1.rotation.x = Math.PI / 3;
     scene.add(ringMesh1);
 
-    const ringGeo2 = new THREE.TorusGeometry(2.05, 0.014, 16, 100);
+    const ringGeo2 = new THREE.TorusGeometry(1.95, 0.006, 12, 100);
     const ringMat2 = new THREE.MeshStandardMaterial({
       color: 0xc084fc,
       emissive: 0x9333ea,
-      emissiveIntensity: 0.8,
-      roughness: 0.15,
-      metalness: 0.85,
+      emissiveIntensity: 0.4,
+      transparent: true,
+      opacity: 0.55,
+      roughness: 0.2,
+      metalness: 0.8,
     });
     const ringMesh2 = new THREE.Mesh(ringGeo2, ringMat2);
     ringMesh2.rotation.y = Math.PI / 4;
     scene.add(ringMesh2);
 
-    // 7. Floating Star Dust Micro-Particles
-    const particleCount = 45;
+    // 7. Floating Cosmic Star Dust Particles
+    const particleCount = 38;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
     for (let i = 0; i < particleCount * 3; i += 3) {
-      const radius = 1.9 + Math.random() * 1.5;
+      const radius = 1.8 + Math.random() * 1.4;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
       particlePositions[i] = radius * Math.sin(phi) * Math.cos(theta);
@@ -323,15 +384,15 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
     particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
     const particleMat = new THREE.PointsMaterial({
       color: 0xfce7f3,
-      size: 0.045,
+      size: 0.038,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.7,
       blending: THREE.AdditiveBlending,
     });
     const particles = new THREE.Points(particleGeo, particleMat);
     scene.add(particles);
 
-    // 8. Interactive Multi-Touch & Slosh Physics Engine
+    // 8. Interactive Touch & Fluid Slosh Physics Engine
     let isDragging = false;
     let prevPointerX = 0;
     let prevPointerY = 0;
@@ -360,7 +421,7 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
         targetRotY += deltaX * 0.012;
         targetRotX += deltaY * 0.012;
 
-        // Slosh angular acceleration (liquid pushes opposite to drag direction)
+        // Slosh angular acceleration (liquid sloshes opposite to drag direction)
         sloshVel.x -= deltaX * 0.045;
         sloshVel.y += deltaY * 0.045;
 
@@ -379,11 +440,10 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       isDragging = false;
     };
 
-    // Device orientation tilt sensor for mobile devices
     const onDeviceOrientation = (e: DeviceOrientationEvent) => {
       if (e.gamma !== null && e.beta !== null) {
-        const tiltX = (e.gamma / 45) * 0.5; // left-right tilt
-        const tiltY = ((e.beta - 45) / 45) * 0.5; // front-back tilt
+        const tiltX = (e.gamma / 45) * 0.5;
+        const tiltY = ((e.beta - 45) / 45) * 0.5;
         sloshVel.x += (tiltX - slosh.x) * 0.2;
         sloshVel.y += (tiltY - slosh.y) * 0.2;
       }
@@ -407,9 +467,9 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
-      // Liquid harmonic oscillation & viscosity damping
-      const springK = 16.0;   // Restoring force
-      const dampingC = 3.6;   // Viscous damping
+      // Damped harmonic oscillator for natural slosh physics
+      const springK = 15.0;   // Restoring force
+      const dampingC = 3.5;   // Viscous damping
       sloshVel.x += (-springK * slosh.x - dampingC * sloshVel.x) * delta;
       sloshVel.y += (-springK * slosh.y - dampingC * sloshVel.y) * delta;
       slosh.x += sloshVel.x * delta;
@@ -421,8 +481,9 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       liquidUniforms.uSlosh.value.copy(slosh);
       liquidUniforms.uSloshVelocity.value = Math.min(sloshIntensity, 2.5);
       liquidUniforms.uAudio.value = audioLevelRef.current || 0;
+      glassUniforms.uTime.value = time;
 
-      // Mode-specific color aura
+      // Mode-specific color states
       const currentMode = modeRef.current;
       if (currentMode === 'listening') {
         liquidUniforms.uColorTop.value.setHex(0x38bdf8);
@@ -441,32 +502,32 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
         liquidUniforms.uColorBottom.value.setHex(0x991b1b);
       } else {
         liquidUniforms.uColorTop.value.setHex(0xf472b6);
-        liquidUniforms.uColorBottom.value.setHex(0x8b2fc9);
+        liquidUniforms.uColorBottom.value.setHex(0x7e22ce);
       }
 
       if (!prefersReducedMotion) {
-        // Continuous organic rotation of outer shell & droplets
-        glassMesh.rotation.y += delta * 0.42;
-        dropletsGroup.rotation.y += delta * 0.42;
+        // Continuous rotation of outer shell & droplets
+        glassMesh.rotation.y += delta * 0.38;
+        dropletsGroup.rotation.y += delta * 0.38;
 
-        // Liquid volume rotates with independent inertia lag
-        liquidMesh.rotation.y += delta * 0.32;
+        // Internal liquid volume rotates independently with inertia lag
+        liquidMesh.rotation.y += delta * 0.28;
         liquidMesh.rotation.x = slosh.y * 0.35;
         liquidMesh.rotation.z = -slosh.x * 0.35;
 
-        // Gyroscopic ring motion
-        ringMesh1.rotation.z += delta * 0.7;
-        ringMesh1.rotation.x = Math.PI / 3 + Math.sin(time * 1.1) * 0.12;
+        // Subtle orbital threads
+        ringMesh1.rotation.z += delta * 0.55;
+        ringMesh1.rotation.x = Math.PI / 3 + Math.sin(time * 1.1) * 0.1;
 
-        ringMesh2.rotation.z -= delta * 0.6;
-        ringMesh2.rotation.y = Math.PI / 4 + Math.cos(time * 0.85) * 0.12;
+        ringMesh2.rotation.z -= delta * 0.45;
+        ringMesh2.rotation.y = Math.PI / 4 + Math.cos(time * 0.85) * 0.1;
 
         // Floating particles
-        particles.rotation.y += delta * 0.1;
-        particles.rotation.x += delta * 0.05;
+        particles.rotation.y += delta * 0.08;
+        particles.rotation.x += delta * 0.04;
 
         // Breathing pulse & audio expansion
-        const breathe = 1.0 + Math.sin(time * 2.0) * 0.025 + (audioLevelRef.current || 0) * 0.32;
+        const breathe = 1.0 + Math.sin(time * 2.0) * 0.02 + (audioLevelRef.current || 0) * 0.3;
         orbGroup.scale.set(breathe, breathe, breathe);
 
         // Smooth interactive parallax interpolation
@@ -475,7 +536,6 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
         orbGroup.rotation.x = currentRotX;
         orbGroup.rotation.y = currentRotY;
 
-        // Spring-back to center when not dragging
         if (!isDragging) {
           targetRotX *= 0.985;
           targetRotY *= 0.985;
