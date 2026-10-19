@@ -6,7 +6,6 @@
 
 import React from 'react';
 import type { Scenario } from '@/types/database';
-import { getScenarioTheme } from '@/lib/scenarioThemes';
 
 interface ScenarioDetailsModalProps {
   scenario: Scenario | null;
@@ -23,28 +22,45 @@ export const ScenarioDetailsModal: React.FC<ScenarioDetailsModalProps> = ({
 }) => {
   if (!isOpen || !scenario) return null;
 
-  const theme = getScenarioTheme(scenario.title);
-
   return (
     <div className="modal-backdrop-cinematic" onClick={onClose}>
       <div
-        className="modal-container-glass scenario-details-dialog"
+        className="modal-container-glass scenario-details-dialog figma-screen-06-modal"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="scenario-details-title"
       >
-        <div
-          className="scenario-details-hero"
-          style={{ background: theme.gradientBackground }}
-        >
-          <div className="hero-top-row">
-            <span className="hero-cat-tag">{scenario.category}</span>
-            <span className="hero-diff-tag">{scenario.difficulty}</span>
-          </div>
-          <div className="hero-symbol-glow">{theme.iconSymbol}</div>
-          <button className="close-btn-round" onClick={onClose} aria-label="Close details">
-            ✕
+        {/* Screen 06 Top Bar */}
+        <div className="figma-screen-header details-modal-header">
+          <button className="back-nav-arrow" onClick={onClose} aria-label="Back">
+            ‹
           </button>
+          <div className="screen-header-titles">
+            <h2 className="screen-title-primary">Details</h2>
+          </div>
+          <button className="heart-icon-btn" aria-label="Favorite">
+            ♡
+          </button>
+        </div>
+
+        {/* Hero Photo Card */}
+        <div className="details-hero-photo-container">
+          <img
+            src="/workplace_meeting_ref.png"
+            alt={scenario.title}
+            className="details-hero-photo"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+        </div>
+
+        {/* Tag Pill Row */}
+        <div className="details-tags-row">
+          <span className="details-tag-pill active">Work</span>
+          <span className="details-tag-pill">Social</span>
+          <span className="details-tag-pill">{scenario.difficulty}</span>
+          <span className="details-tag-pill">~15 mins</span>
         </div>
 
         <div className="scenario-details-body">
@@ -53,25 +69,9 @@ export const ScenarioDetailsModal: React.FC<ScenarioDetailsModalProps> = ({
           </h2>
           <p className="details-summary">{scenario.description}</p>
 
-          <div className="details-meta-grid">
-            <div className="meta-card">
-              <span className="meta-icon">👤</span>
-              <div>
-                <span className="meta-label">Your Target Role</span>
-                <strong>Senior Candidate / Presenter</strong>
-              </div>
-            </div>
-            <div className="meta-card">
-              <span className="meta-icon">👥</span>
-              <div>
-                <span className="meta-label">Counterpart Persona</span>
-                <strong>{scenario.role}</strong>
-              </div>
-            </div>
-          </div>
-
-          <div className="details-section">
-            <h3 className="section-title">🎯 Rehearsal Objectives</h3>
+          {/* What you'll practice */}
+          <div className="details-practice-checklist">
+            <h3 className="checklist-heading">What you'll practice</h3>
             <ul className="details-goals-list">
               {scenario.goals.map((goal, idx) => (
                 <li key={idx} className="goal-row">
@@ -82,23 +82,12 @@ export const ScenarioDetailsModal: React.FC<ScenarioDetailsModalProps> = ({
             </ul>
           </div>
 
-          <div className="details-section">
-            <h3 className="section-title">🧠 Pedagogical Guidance</h3>
-            <p className="pedagogical-hint">
-              Maya Sharma (AI Coach) will monitor your structure using the STAR framework
-              and provide real-time tactical interventions when pressure spikes.
-            </p>
-          </div>
-
           <div className="details-action-bar">
-            <button className="btn-secondary" onClick={onClose}>
-              Back to Universe
-            </button>
             <button
-              className="btn-primary-luminous"
+              className="btn-primary-luminous start-setup-wide-btn"
               onClick={() => onStartRehearsal(scenario)}
             >
-              Configure & Enter Rehearsal ➔
+              Start Setup →
             </button>
           </div>
         </div>

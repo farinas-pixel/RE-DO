@@ -31,7 +31,34 @@ interface GuidedSetupModalProps {
   startError: string | null;
 }
 
-const TOTAL_STEPS = 5;
+const COUNTERPARTS = [
+  {
+    role: 'Alex Vance (Manager)',
+    title: 'Manager',
+    description: 'Direct, results-oriented, expects clear facts and structured reasoning.',
+    avatar: '👔',
+  },
+  {
+    role: 'Sarah Jenkins (Colleague)',
+    title: 'Colleague',
+    description: 'Collaborative and friendly, but protective of team workload and scope.',
+    avatar: '👥',
+  },
+  {
+    role: 'David Miller (Client)',
+    title: 'Client',
+    description: 'Demanding, cost-conscious, seeking immediate value and risk guarantees.',
+    avatar: '💼',
+  },
+  {
+    role: 'Elena Rostova (Team Member)',
+    title: 'Team Member',
+    description: 'Empathetic, values psychological safety, but sensitive to critical feedback.',
+    avatar: '🤝',
+  },
+];
+
+const TOTAL_STEPS = 4;
 
 export function GuidedSetupModal({
   scenario,
@@ -41,6 +68,7 @@ export function GuidedSetupModal({
   startError,
 }: GuidedSetupModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedCounterpart, setSelectedCounterpart] = useState(scenario.role || 'Alex Vance (Manager)');
   const [difficulty, setDifficulty] = useState<DifficultyLevel>(scenario.difficulty);
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('text');
   const [coachingPreference, setCoachingPreference] = useState<CoachingPreference>('guided');
@@ -61,6 +89,7 @@ export function GuidedSetupModal({
   };
 
   const handleLaunch = async () => {
+    scenario.role = selectedCounterpart;
     await onStart({
       difficulty,
       practiceMode,
@@ -69,48 +98,35 @@ export function GuidedSetupModal({
   };
 
   return (
-    <div className="modal-backdrop" onClick={() => !isStarting && onClose()} role="dialog" aria-modal="true">
+    <div className="modal-backdrop-cinematic" onClick={() => !isStarting && onClose()} role="dialog" aria-modal="true">
       <div
-        className="modal-card cinematic-modal"
+        className="modal-container-glass cinematic-modal figma-screen-07-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
           borderTop: `2px solid ${theme.accentColor}`,
           boxShadow: `0 24px 64px -12px rgba(0,0,0,0.8), 0 0 32px -4px ${theme.glowColor}`,
         }}
       >
-        {/* Header / Stepper */}
-        <div className="modal-header">
-          <div className="stepper-progress-wrap">
-            <div className="stepper-meta">
-              <span className="stepper-phase-pill" style={{ color: theme.accentColor, borderColor: theme.accentColor }}>
-                Step {currentStep} of {TOTAL_STEPS}
-              </span>
-              <span className="stepper-title-pill">
-                {currentStep === 1 && 'Scenario Briefing'}
-                {currentStep === 2 && 'Counterpart Profile'}
-                {currentStep === 3 && 'Difficulty Calibration'}
-                {currentStep === 4 && 'Input & Audio Mode'}
-                {currentStep === 5 && 'Tutor Coaching Preference'}
-              </span>
-            </div>
-            <div className="stepper-bar-track">
-              <div
-                className="stepper-bar-fill"
-                style={{
-                  width: `${(currentStep / TOTAL_STEPS) * 100}%`,
-                  background: theme.accentColor,
-                }}
-              />
-            </div>
-          </div>
+        {/* Screen 07 Header with Stepper Dots */}
+        <div className="figma-screen-header guided-setup-header">
           <button
-            className="close-btn"
-            disabled={isStarting}
-            onClick={onClose}
-            aria-label="Close setup modal"
+            className="back-nav-arrow"
+            onClick={currentStep > 1 ? handlePrev : onClose}
+            aria-label="Back"
           >
-            &times;
+            ‹
           </button>
+          <div className="screen-header-titles">
+            <h2 className="screen-title-primary">Guided Setup</h2>
+          </div>
+          <div className="header-stepper-dots">
+            {[1, 2, 3, 4].map((step) => (
+              <span
+                key={step}
+                className={`step-dot ${currentStep === step ? 'active' : ''}`}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Modal Body Stages */}
@@ -121,71 +137,42 @@ export function GuidedSetupModal({
             </div>
           )}
 
-          {/* STEP 1: Scenario Briefing */}
+          {/* STEP 1: Choose your counterpart (Figma Screen 07) */}
           {currentStep === 1 && (
-            <div className="step-content">
-              <div className="scenario-badge-row">
-                <span className="badge category-badge">{scenario.category}</span>
-                <span className="badge environment-badge">{theme.environmentBadge}</span>
-              </div>
-              <h3 className="briefing-title">{scenario.title}</h3>
-              <p className="briefing-context">{scenario.description}</p>
+            <div className="step-content figma-screen-07-content">
+              <h3 className="section-title">Choose your counterpart</h3>
+              <p className="section-desc">
+                Select who you will be interacting with during this practice session.
+              </p>
 
-              <div className="briefing-roles-panel">
-                <div className="role-chip counterpart-chip">
-                  <span className="chip-tag">Speaking With</span>
-                  <strong>{scenario.role}</strong>
-                </div>
-                <div className="role-chip user-chip">
-                  <span className="chip-tag">Your Identity</span>
-                  <strong>{scenario.user_role}</strong>
-                </div>
-              </div>
-
-              <div className="objectives-panel">
-                <h4 className="panel-subheading">Core Rehearsal Goals</h4>
-                <ul className="goals-checklist">
-                  {scenario.goals.map((g, idx) => (
-                    <li key={idx}>
-                      <span className="check-bullet" style={{ color: theme.accentColor }}>✓</span>
-                      <span>{g}</span>
-                    </li>
-                  ))}
-                </ul>
+              <div className="counterpart-selection-list">
+                {COUNTERPARTS.map((cp) => {
+                  const isSelected =
+                    selectedCounterpart === cp.role ||
+                    (selectedCounterpart.includes(cp.title) && !selectedCounterpart.includes('('));
+                  return (
+                    <div
+                      key={cp.role}
+                      className={`counterpart-select-card ${isSelected ? 'selected' : ''}`}
+                      onClick={() => setSelectedCounterpart(cp.role)}
+                    >
+                      <div className="cp-avatar-box">{cp.avatar}</div>
+                      <div className="cp-info-box">
+                        <strong className="cp-name">{cp.role}</strong>
+                        <p className="cp-desc">{cp.description}</p>
+                      </div>
+                      <div className={`cp-radio-circle ${isSelected ? 'active' : ''}`}>
+                        {isSelected && <span className="cp-radio-dot" />}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* STEP 2: Counterpart Profile */}
+          {/* STEP 2: Difficulty Calibration */}
           {currentStep === 2 && (
-            <div className="step-content">
-              <div className="counterpart-hero-card" style={{ background: theme.gradientBackground }}>
-                <div className="counterpart-avatar-ring" style={{ borderColor: theme.accentColor }}>
-                  <span className="avatar-icon">{theme.iconSymbol}</span>
-                </div>
-                <div className="counterpart-details">
-                  <span className="archetype-label">Roleplay Persona</span>
-                  <h3 className="counterpart-name">{scenario.role}</h3>
-                  <p className="counterpart-desc">{theme.counterpartArchetype}</p>
-                </div>
-              </div>
-
-              <div className="instructions-callout">
-                <h4 className="panel-subheading">Counterpart Behavioral Context</h4>
-                <p>{scenario.scenario_instructions}</p>
-              </div>
-
-              {scenario.starter_prompts && scenario.starter_prompts.length > 0 && (
-                <div className="starter-preview">
-                  <span className="preview-label">Opening Dialogue Anchor:</span>
-                  <blockquote className="starter-quote">"{scenario.starter_prompts[0]}"</blockquote>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP 3: Difficulty Calibration */}
-          {currentStep === 3 && (
             <div className="step-content">
               <h3 className="section-title">Calibrate Pressure & Pacing</h3>
               <p className="section-desc">
@@ -222,8 +209,8 @@ export function GuidedSetupModal({
             </div>
           )}
 
-          {/* STEP 4: Input & Audio Mode */}
-          {currentStep === 4 && (
+          {/* STEP 3: Input & Audio Mode */}
+          {currentStep === 3 && (
             <div className="step-content">
               <h3 className="section-title">Select Interaction Modality</h3>
               <p className="section-desc">
@@ -273,8 +260,8 @@ export function GuidedSetupModal({
             </div>
           )}
 
-          {/* STEP 5: Coaching Preference */}
-          {currentStep === 5 && (
+          {/* STEP 4: Coaching Preference */}
+          {currentStep === 4 && (
             <div className="step-content">
               <h3 className="section-title">AI Tutor Coaching Preference</h3>
               <p className="section-desc">

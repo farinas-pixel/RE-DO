@@ -1,35 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CrystalOrb } from '@/components/CrystalOrb';
 
 export const SplashScreen: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [isFading, setIsFading] = useState(false);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsFading(true);
+      setTimeout(onComplete, 400);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
   const handleEnter = () => {
     setIsFading(true);
-    setTimeout(onComplete, 600);
+    setTimeout(onComplete, 400);
   };
 
   return (
-    <div className={`splash-screen-container ${isFading ? 'fade-out' : ''}`}>
+    <div className={`splash-screen-container figma-screen-01 ${isFading ? 'fade-out' : ''}`} onClick={handleEnter}>
+      {/* Background radial glow */}
       <div className="splash-lighting-glow" />
+
       <div className="splash-content-stack">
+        {/* Real 3D Crystal Orb */}
         <div className="splash-orb-frame">
-          <CrystalOrb size={260} interactive={true} />
+          <CrystalOrb size={280} interactive={true} />
         </div>
 
+        {/* Brand identity matching Screen 01 */}
         <div className="splash-brand-block">
-          <span className="splash-script-tag">Experience it</span>
           <h1 className="splash-brand-title">RE:DO</h1>
-          <p className="splash-tagline">Before you face it in real life.</p>
+          <p className="splash-tagline-practice">Practice Today</p>
+          <p className="splash-tagline-grow">Grow Tomorrow</p>
         </div>
 
-        <p className="splash-subtext">
-          High-fidelity conversation simulations, interview defenses, and strategic decisions in an immersive, safe environment.
-        </p>
-
-        <button className="btn btn-primary splash-launch-btn" onClick={handleEnter}>
-          Enter Simulation Hub →
-        </button>
+        {/* Ambient progress line */}
+        <div className="splash-progress-track">
+          <div className="splash-progress-fill" />
+        </div>
       </div>
     </div>
   );

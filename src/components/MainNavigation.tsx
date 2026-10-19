@@ -18,6 +18,7 @@ export const MainNavigation: React.FC = () => {
     <header className="global-app-header">
       <div className="header-brand-block">
         <Link to="/hub" className="redo-brand-link">
+          <span className="brand-spark-icon">✨</span>
           <span className="brand-logo-text">RE:DO</span>
           <span className="brand-tagline-mini">Experience it before you face it</span>
         </Link>

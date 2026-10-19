@@ -56,10 +56,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // 1. Check for existing session (e.g., user refreshed the page)
     const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setState({
+            user: session.user,
+            session,
+            loading: false,
+          });
+          return;
+        }
+      } catch { /* ignore */ }
+
+      const guest = localStorage.getItem('redo_guest_user');
+      if (guest) {
+        try {
+          setState({
+            user: JSON.parse(guest),
+            session: null,
+            loading: false,
+          });
+          return;
+        } catch { /* ignore */ }
+      }
+
       setState({
-        user: session?.user ?? null,
-        session,
+        user: null,
+        session: null,
         loading: false,
       });
     };
@@ -68,11 +91,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 2. Listen for auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setState({
-          user: session?.user ?? null,
-          session,
-          loading: false,
-        });
+        if (session?.user) {
+          setState({
+            user: session.user,
+            session,
+            loading: false,
+          });
+        }
       }
     );
 

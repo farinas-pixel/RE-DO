@@ -42,7 +42,6 @@ import {
   type RehearsalFeedbackReport,
   type TutorHint,
 } from '@/lib/practiceEngine';
-import { getScenarioTheme } from '@/lib/scenarioThemes';
 import {
   isSpeechRecognitionSupported,
   isSpeechSynthesisSupported,
@@ -50,6 +49,7 @@ import {
   speakText,
   stopSpeaking,
 } from '@/services/speechService';
+import { AndroidBottomBar } from '@/components/AndroidBottomBar';
 
 export function LiveSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -67,9 +67,6 @@ export function LiveSessionPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
 
-  // Tabs in dialogue panel
-  const [activeTab, setActiveTab] = useState<'conversation' | 'objectives' | 'notes'>('conversation');
-
   // Branching Decision state
   const [decisionStage, setDecisionStage] = useState<number | null>(null);
 
@@ -84,30 +81,12 @@ export function LiveSessionPage() {
   // Voice States
   const [isRecording, setIsRecording] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [autoSpeak] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-
-  // Session timer
-  const [secondsElapsed, setSecondsElapsed] = useState(0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognizerRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  const theme = getScenarioTheme(scenario?.title || '');
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsElapsed((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTimer = (totalSeconds: number) => {
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -156,7 +135,7 @@ export function LiveSessionPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, activeTab]);
+  }, [messages]);
 
   // Voice Recognition Toggle
   const toggleRecording = () => {
@@ -238,20 +217,6 @@ export function LiveSessionPage() {
       setCoachSpeechBubble(turnResult.tutorHint.strategy);
       setShowHintModal(true);
     }
-  };
-
-  const handleGiveExample = () => {
-    if (!scenario) return;
-    const example = `Here is an exemplar articulation anchor you can adapt: "When evaluating this situation, I focused on tangible business continuity and scheduled an alignment review to resolve stakeholder friction."`;
-    setCoachSpeechBubble(example);
-    setInputText('When evaluating this situation, I focused on tangible business continuity and scheduled an alignment review...');
-  };
-
-  const handleRepeatExplanation = () => {
-    if (!scenario) return;
-    setCoachSpeechBubble(
-      `Remember: You are facing ${scenario.role} as ${scenario.user_role}. Focus on achieving: "${scenario.goals[0] || 'Clear articulation'}" while keeping your composure.`
-    );
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -403,501 +368,236 @@ export function LiveSessionPage() {
   }
 
   return (
-    <div className="cockpit-viewport">
-      {/* Cockpit Top Header */}
-      <header className="cockpit-top-bar">
-        <div className="cockpit-brand-group">
-          <span className="brand-logo-text">RE:DO</span>
-          <span className="brand-tagline-mini">Experience it before you face it.</span>
+    <div className="rehearsal-room-page figma-screen-08">
+      {/* Header matching Screen 08 */}
+      <header className="figma-screen-header">
+        <button
+          className="back-nav-arrow"
+          onClick={() => navigate('/scenarios')}
+          aria-label="Back to Scenarios"
+        >
+          ‹
+        </button>
+        <div className="screen-header-titles">
+          <h2 className="screen-title-primary">Rehearsal Room</h2>
+          <p className="screen-subtitle-muted">
+            {scenario?.category || 'Workplace Communication'}
+          </p>
         </div>
-
-        <div className="cockpit-top-nav">
-          <button className="top-nav-pill active">
-            <span className="pill-icon">🏛️</span> Rehearsal Room
-          </button>
-          <button className="top-nav-pill" onClick={() => navigate('/progress')}>
-            <span className="pill-icon">📈</span> Progress
-          </button>
-          <div className="cockpit-user-avatar" onClick={() => navigate('/settings')} title="Settings">
-            <span>JD</span>
-            <span className="user-caret">▼</span>
-          </div>
-        </div>
+        <button
+          className="menu-nav-dots"
+          onClick={handleRequestHint}
+          aria-label="AI Coach Hints"
+          title="Coach Advice"
+        >
+          ⋮
+        </button>
       </header>
 
-      {/* Main 3-Region Grid */}
-      <div className="cockpit-grid-container">
-        {/* ============================================================== */}
-        {/* LEFT REGION: Scenario & Objectives                             */}
-        {/* ============================================================== */}
-        <aside className="cockpit-left-region">
-          <button className="back-scenarios-btn" onClick={() => navigate('/scenarios')}>
-            ← Back to Scenarios
-          </button>
+      {/* Status Pill: Glowing dot + Listening... / Thinking... / Speaking... / Ready */}
+      <div className="rehearsal-status-strip">
+        <div
+          className={`rehearsal-status-pill ${
+            isRecording ? 'recording' : sending ? 'thinking' : isSpeaking ? 'speaking' : ''
+          }`}
+        >
+          <span className="live-status-dot" />
+          <span className="status-label-text">
+            {isRecording
+              ? 'Listening...'
+              : sending
+              ? 'Thinking...'
+              : isSpeaking
+              ? 'Speaking...'
+              : 'Listening...'}
+          </span>
+        </div>
+      </div>
 
-          {/* Scenario Overview Card */}
-          <div className="cockpit-panel scenario-card-overview">
+      {/* AI Tutor Stage: Rounded glass card displaying /ai_tutor_character.png */}
+      <div className="ai-tutor-main-card">
+        <div className="ai-tutor-portrait-frame">
+          <img
+            src="/ai_tutor_character.png"
+            alt="AI Coach"
+            className="ai-tutor-img"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/nexa_ref.png';
+            }}
+          />
+          <div className="ai-tutor-shimmer-ring" />
+        </div>
+
+        {/* Subtitle / Speech Bubble: "Take your time. I'm listening." */}
+        <div className="ai-tutor-speech-bubble">
+          <p className="bubble-text">
+            {coachSpeechBubble || "Take your time. I'm listening."}
+          </p>
+        </div>
+      </div>
+
+      {/* Dialogue Stream */}
+      <div className="rehearsal-dialogue-stream">
+        {messages.map((msg) => {
+          const isUser = msg.sender === 'user';
+          return (
             <div
-              className="scenario-env-image-box"
-              style={{ background: theme.gradientBackground }}
+              key={msg.id}
+              className={`dialogue-bubble-row ${isUser ? 'user-turn' : 'counterpart-turn'}`}
             >
-              <span className="env-badge">{scenario?.category}</span>
-              <span className="diff-badge-pill">{session.difficulty}</span>
-              <div className="env-icon-large">{theme.iconSymbol}</div>
-            </div>
-
-            <h2 className="scenario-title-text">{scenario?.title}</h2>
-            <p className="scenario-summary-text">{scenario?.description}</p>
-
-            <div className="role-identity-stack">
-              <div className="identity-item">
-                <span className="id-icon">👤</span>
-                <div>
-                  <span className="id-label">Your Role</span>
-                  <strong className="id-val">{session.user_role}</strong>
+              <div className="dialogue-bubble">
+                <div className="bubble-meta">
+                  <span className="bubble-speaker-tag">
+                    {isUser ? 'You' : session.role}
+                  </span>
+                  <span className="bubble-time">
+                    {new Date(msg.created_at).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
                 </div>
-              </div>
-              <div className="identity-item">
-                <span className="id-icon">👥</span>
-                <div>
-                  <span className="id-label">Counterpart</span>
-                  <strong className="id-val">{session.role}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Practice Goals Checklist */}
-          <div className="cockpit-panel practice-goals-panel">
-            <h3 className="panel-heading-mini">🎯 Practice Goals</h3>
-            <ul className="cockpit-goals-list">
-              {scenario?.goals.map((goal, idx) => (
-                <li key={idx} className="goal-item-row">
-                  <span className="goal-check-circle">✓</span>
-                  <span className="goal-item-text">{goal}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Session Mode Indicator */}
-          <div className="cockpit-panel session-mode-card">
-            <div className="mode-icon-box">⚡</div>
-            <div className="mode-text-box">
-              <span className="mode-label">Session Mode</span>
-              <strong>Guided Rehearsal</strong>
-              <p>Get AI tutor guidance, hints, and feedback</p>
-            </div>
-          </div>
-
-          {/* Audio & TTS Controls Foot */}
-          <div className="cockpit-panel audio-controls-panel">
-            <div className="tts-switch-row">
-              <div className="tts-label-group">
-                <span className="tts-icon">🔊</span>
-                <span>TTS Playback:</span>
-              </div>
-              <button
-                className={`switch-pill ${autoSpeak ? 'active' : ''}`}
-                onClick={() => {
-                  if (autoSpeak) stopSpeaking();
-                  setAutoSpeak(!autoSpeak);
-                }}
-              >
-                {autoSpeak ? 'On' : 'Off'}
-              </button>
-            </div>
-            <div className="voice-persona-select-row">
-              <span className="speaker-icon">🗣️</span>
-              <span className="voice-name">English (Natural Female)</span>
-            </div>
-          </div>
-        </aside>
-
-        {/* ============================================================== */}
-        {/* CENTRE REGION: AI Coach Stage + Dialogue Viewport              */}
-        {/* ============================================================== */}
-        <main className="cockpit-centre-region">
-          {/* AI Coach Stage Header Card */}
-          <div className="cockpit-panel ai-coach-stage-card">
-            <div className="coach-card-header">
-              <div className="coach-id-group">
-                <span className="coach-badge-icon">🧠</span>
-                <div>
-                  <strong>AI Coach</strong>
-                  <span className="live-status-dot">● Online</span>
-                </div>
-              </div>
-
-              <div className="coach-status-pills">
-                <span className={`status-chip ${isRecording ? 'active' : ''}`}>
-                  🎙️ Listening
-                </span>
-                <span className={`status-chip ${sending ? 'active' : ''}`}>
-                  💭 Thinking
-                </span>
-                <span className={`status-chip ${isSpeaking ? 'active' : ''}`}>
-                  🗣️ Speaking
-                </span>
-              </div>
-            </div>
-
-            <div className="coach-presence-row">
-              <div className="coach-portrait-box">
-                {/* Visual Avatar Portrait */}
-                <div className="avatar-frame">
-                  <img
-                    src="/nexa_ref.png"
-                    alt="Maya Sharma - AI Coach"
-                    className="coach-img"
-                    onError={(e) => {
-                      // Graceful fallback to CSS avatar
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="coach-avatar-fallback">MS</div>
-                </div>
-                <div className="coach-nameplate">
-                  <span className="coach-name">Maya Sharma</span>
-                  <span className="coach-subtitle">Your AI Coach</span>
-                </div>
-              </div>
-
-              {/* Dynamic Coach Speech Bubble */}
-              <div className="coach-bubble-container">
-                <div className="coach-bubble-body">
-                  <p>{coachSpeechBubble}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Dialogue Feed with Tabs */}
-          <div className="cockpit-panel dialogue-panel">
-            <div className="dialogue-tabs-bar">
-              <div className="tab-buttons">
-                <button
-                  className={`tab-btn ${activeTab === 'conversation' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('conversation')}
-                >
-                  Conversation
-                </button>
-                <button
-                  className={`tab-btn ${activeTab === 'objectives' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('objectives')}
-                >
-                  Objectives
-                </button>
-                <button
-                  className={`tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('notes')}
-                >
-                  Notes
-                </button>
-              </div>
-
-              <div className="tutor-active-badge">
-                <span className="sparkle">✨</span> Tutor Active
-              </div>
-            </div>
-
-            {/* Conversation Messages Stream */}
-            {activeTab === 'conversation' && (
-              <div className="conversation-stream">
-                {messages.length === 0 ? (
-                  <div className="empty-stream-notice">
-                    <p>No messages recorded yet. Deliver your introduction below.</p>
-                  </div>
-                ) : (
-                  messages.map((msg) => {
-                    const isUser = msg.sender === 'user';
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`cockpit-message-row ${isUser ? 'user-side' : 'counterpart-side'}`}
-                      >
-                        {!isUser && (
-                          <div className="avatar-chip counterpart-chip">
-                            <span>{session.role.substring(0, 2).toUpperCase()}</span>
-                          </div>
-                        )}
-
-                        <div className="message-content-block">
-                          <div className="message-meta-head">
-                            <span className="speaker-label">
-                              {isUser ? 'You' : session.role}
-                            </span>
-                            <span className="msg-timestamp">
-                              {new Date(msg.created_at).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-
-                          <div className="cockpit-bubble">
-                            <p>{msg.content}</p>
-                          </div>
-
-                          {!isUser && isSpeechSynthesisSupported() && (
-                            <button
-                              type="button"
-                              className="bubble-audio-btn"
-                              onClick={() => handleSpeak(msg.content)}
-                            >
-                              🗣️ Read Aloud
-                            </button>
-                          )}
-                        </div>
-
-                        {isUser && (
-                          <div className="avatar-chip user-chip">
-                            <span>JD</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-
-                {/* Choose Your Path Branching Decisions */}
-                {decisionStage === 1 && (
-                  <div className="branching-decision-box">
-                    <span className="decision-prompt-badge">⚡ Choose Your Path: Branching Decision</span>
-                    <p className="decision-context-text">
-                      The counterpart is pressing you on technical risk. How do you respond?
-                    </p>
-                    <div className="decision-choices-grid">
-                      <button
-                        className="decision-choice-btn"
-                        onClick={() =>
-                          handleBranchChoice(
-                            'I understand the concern. To mitigate risk, we established automated canary rollouts and benchmarked our rollback procedures to ensure zero customer downtime.'
-                          )
-                        }
-                      >
-                        Option A (De-escalation & Data): Address risk with canary benchmarks
-                      </button>
-                      <button
-                        className="decision-choice-btn"
-                        onClick={() =>
-                          handleBranchChoice(
-                            'Our architecture prioritizes immediate performance wins. Any minor downtime during migration is acceptable compared to our competitor latency lag.'
-                          )
-                        }
-                      >
-                        Option B (Assertive Defense): Prioritize speed over risk avoidance
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-
-            {/* Objectives Tab Content */}
-            {activeTab === 'objectives' && (
-              <div className="objectives-tab-view">
-                <h3>Live Objective Alignment</h3>
-                <ul className="objectives-tab-list">
-                  {scenario?.goals.map((g, i) => (
-                    <li key={i} className="obj-tab-item">
-                      <span className="obj-num">0{i + 1}</span>
-                      <div>
-                        <strong>{g}</strong>
-                        <p>Evaluated on message completion and STAR model adherence.</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Notes Tab Content */}
-            {activeTab === 'notes' && (
-              <div className="notes-tab-view">
-                <h3>Session Tactical Notes</h3>
-                <p>Use this space to review key talking points or write mental anchors.</p>
-                <textarea
-                  className="notes-textarea"
-                  placeholder="Draft your private notes here..."
-                  rows={6}
-                />
-              </div>
-            )}
-
-            {/* Bottom Interaction Tray */}
-            <div className="cockpit-input-tray">
-              {voiceError && <div className="tray-alert error">⚠️ {voiceError}</div>}
-              {sendError && <div className="tray-alert error">⚠️ {sendError}</div>}
-
-              {session.status === 'in_progress' ? (
-                <form onSubmit={handleSendMessage} className="tray-form">
-                  <input
-                    type="text"
-                    placeholder={
-                      isRecording
-                        ? 'Listening to speech... Speak now.'
-                        : 'Type your message or use the mic...'
-                    }
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    disabled={sending}
-                    autoFocus
-                  />
-
-                  {/* Microphone Toggle Button */}
+                <p className="bubble-content-text">{msg.content}</p>
+                {!isUser && isSpeechSynthesisSupported() && (
                   <button
                     type="button"
-                    className={`tray-mic-btn ${isRecording ? 'recording' : ''}`}
-                    onClick={toggleRecording}
-                    disabled={sending}
-                    title={isRecording ? 'Stop Recording' : 'Voice Dictation'}
+                    className="mini-speak-btn"
+                    onClick={() => handleSpeak(msg.content)}
                   >
-                    {isRecording ? '🔴' : '🎙️'}
+                    🗣️ Read Aloud
                   </button>
-
-                  {/* Send Arrow Button */}
-                  <button
-                    type="submit"
-                    className="tray-send-btn"
-                    disabled={sending || !inputText.trim()}
-                    title="Send turn"
-                  >
-                    ➔
-                  </button>
-                </form>
-              ) : (
-                <div className="rehearsal-concluded-strip">
-                  <span>✅ Rehearsal Concluded — All records preserved in Supabase.</span>
-                  <button
-                    className="btn btn-outline"
-                    onClick={() => navigate('/scenarios')}
-                  >
-                    Start New Scenario
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </main>
-
-        {/* ============================================================== */}
-        {/* RIGHT REGION: Roleplay Partner Stage + Live Stats              */}
-        {/* ============================================================== */}
-        <aside className="cockpit-right-region">
-          {/* Roleplay Partner Card */}
-          <div className="cockpit-panel partner-stage-card">
-            <div className="partner-card-header">
-              <span className="partner-badge-icon">👥</span>
-              <div>
-                <strong>Roleplay Partner</strong>
-                <span className="live-status-dot">● Live</span>
+                )}
               </div>
             </div>
+          );
+        })}
 
-            <div className="partner-avatar-box">
-              <div className="avatar-frame">
-                <img
-                  src="/redo_cockpit_ref.jpg"
-                  alt={session.role}
-                  className="partner-img"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-                <div className="partner-avatar-fallback">
-                  {session.role.substring(0, 2).toUpperCase()}
-                </div>
-              </div>
-              <div className="partner-nameplate">
-                <span className="partner-name">{session.role}</span>
-                <span className="partner-subtitle">{scenario?.category}</span>
-              </div>
-            </div>
-
-            <div className="partner-wave-container">
-              <span className="wave-status-text">
-                {isSpeaking ? 'Currently speaking...' : 'Listening attentively...'}
-              </span>
-              <div className={`audio-waveform-bars ${isSpeaking ? 'active' : ''}`}>
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-            </div>
-          </div>
-
-          {/* Live Objectives Progress Card */}
-          <div className="cockpit-panel live-objectives-card">
-            <div className="objectives-head-row">
-              <span className="obj-icon">🎯</span>
-              <h4>Live Objectives</h4>
-              <span className="obj-fraction">
-                {Math.min(scenario?.goals.length || 3, messages.filter((m) => m.sender === 'user').length)}/
-                {scenario?.goals.length || 3} completed
-              </span>
-            </div>
-
-            <ul className="live-obj-checklist">
-              {scenario?.goals.map((g, idx) => {
-                const userTurnCount = messages.filter((m) => m.sender === 'user').length;
-                const isCompleted = userTurnCount > idx;
-                return (
-                  <li key={idx} className="live-obj-row">
-                    <span className={`circle-indicator ${isCompleted ? 'checked' : ''}`}>
-                      {isCompleted ? '✓' : '○'}
-                    </span>
-                    <span className="live-obj-text">{g}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          {/* Quick Actions Panel */}
-          <div className="cockpit-panel quick-actions-panel">
-            <h4 className="panel-subheading-mini">⚡ Quick Actions</h4>
-            <div className="quick-actions-stack">
-              <button className="quick-action-btn" onClick={handleRequestHint}>
-                <span className="action-icon">💡</span>
-                <span>Ask for a Hint</span>
-              </button>
-              <button className="quick-action-btn" onClick={handleGiveExample}>
-                <span className="action-icon">📄</span>
-                <span>Give me an Example</span>
-              </button>
-              <button className="quick-action-btn" onClick={handleRepeatExplanation}>
-                <span className="action-icon">🔄</span>
-                <span>Repeat Explanation</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Bottom Timer & End Session Button */}
-          <div className="cockpit-panel session-timer-card">
-            <div className="timer-display">
-              <span className="clock-icon">🕒</span>
-              <span className="timer-text">Session Time {formatTimer(secondsElapsed)}</span>
-            </div>
-
-            {session.status === 'in_progress' && (
+        {/* Branching Decision Choice */}
+        {decisionStage === 1 && (
+          <div className="decision-branch-prompt-card">
+            <span className="branch-badge">⚡ Decision Branch</span>
+            <p className="branch-title">Choose your tactical response:</p>
+            <div className="branch-btns-group">
               <button
-                className="end-session-action-btn"
-                disabled={isFinishing}
-                onClick={handleCompleteSession}
+                className="branch-option-btn"
+                onClick={() =>
+                  handleBranchChoice(
+                    'I understand the concern. To mitigate risk, we established automated canary rollouts and benchmarked our rollback procedures.'
+                  )
+                }
               >
-                {isFinishing ? 'Analyzing...' : '🚪 End Session'}
+                Option A: De-escalate with canary benchmarks
               </button>
-            )}
+              <button
+                className="branch-option-btn"
+                onClick={() =>
+                  handleBranchChoice(
+                    'Our architecture prioritizes immediate performance wins over legacy caution.'
+                  )
+                }
+              >
+                Option B: Assertive velocity defense
+              </button>
+            </div>
           </div>
-        </aside>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
+
+      {/* Error Notices */}
+      {voiceError && <div className="tray-alert error" style={{ padding: '0.35rem 0.75rem', color: '#f87171', fontSize: '0.75rem', textAlign: 'center' }}>⚠️ {voiceError}</div>}
+      {sendError && <div className="tray-alert error" style={{ padding: '0.35rem 0.75rem', color: '#f87171', fontSize: '0.75rem', textAlign: 'center' }}>⚠️ {sendError}</div>}
+
+      {/* Quick Text Input Form */}
+      {session.status === 'in_progress' && (
+        <form onSubmit={handleSendMessage} className="rehearsal-quick-input-bar">
+          <input
+            type="text"
+            placeholder={
+              isRecording
+                ? 'Listening to speech... (speak now)'
+                : 'Type your message or use mic below...'
+            }
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            disabled={sending}
+          />
+          <button
+            type="submit"
+            className="rehearsal-send-btn"
+            disabled={sending || !inputText.trim()}
+            aria-label="Send message"
+          >
+            ➔
+          </button>
+        </form>
+      )}
+
+      {/* Bottom Floating Controls: Round Pause, Mic, End buttons */}
+      <div className="rehearsal-bottom-controls-row">
+        {/* Pause Button */}
+        <button
+          type="button"
+          className="rehearsal-circle-btn pause-btn"
+          onClick={() => {
+            if (isSpeaking) stopSpeaking();
+            if (isRecording) toggleRecording();
+          }}
+          title="Pause"
+          aria-label="Pause session"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" rx="2" />
+            <rect x="14" y="4" width="4" height="16" rx="2" />
+          </svg>
+        </button>
+
+        {/* Center Round Purple Mic Button */}
+        <button
+          type="button"
+          className={`rehearsal-circle-btn mic-btn-primary ${
+            isRecording ? 'is-recording-pulsing' : ''
+          }`}
+          onClick={toggleRecording}
+          title={isRecording ? 'Stop Recording' : 'Voice Input'}
+          aria-label="Toggle Microphone"
+        >
+          <span className="mic-outer-ring" />
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="22" />
+            <line x1="8" y1="22" x2="16" y2="22" />
+          </svg>
+        </button>
+
+        {/* End Session Button */}
+        <button
+          type="button"
+          className="rehearsal-circle-btn end-btn"
+          onClick={handleCompleteSession}
+          disabled={isFinishing}
+          title="End Rehearsal"
+          aria-label="End Rehearsal"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="5" y="5" width="14" height="14" rx="3" />
+          </svg>
+        </button>
+      </div>
+
+      {/* 5-Tab Android Navigation Bar */}
+      <AndroidBottomBar />
 
       {/* Tutor Hint Modal */}
       {showHintModal && activeHint && (

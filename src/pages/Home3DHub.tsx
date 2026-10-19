@@ -2,33 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { CrystalOrb } from '@/components/CrystalOrb';
-import { getScenarios, getUserSessions } from '@/services/sessionService';
-import type { Scenario, Session } from '@/types/database';
-import { getScenarioTheme } from '@/lib/scenarioThemes';
+import { getScenarios, DEFAULT_SCENARIOS } from '@/services/sessionService';
+import type { Scenario } from '@/types/database';
 
 export const Home3DHub: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [scenarios, setScenarios] = useState<Scenario[]>(DEFAULT_SCENARIOS);
+  const [loading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
-      const [scenRes, sessRes] = await Promise.all([
-        getScenarios(),
-        getUserSessions(),
-      ]);
-      if (scenRes.data) setScenarios(scenRes.data);
-      if (sessRes.data) setSessions(sessRes.data);
-      setLoading(false);
+      const scenRes = await getScenarios();
+      if (scenRes.data && scenRes.data.length > 0) {
+        setScenarios(scenRes.data);
+      }
     };
     fetchData();
   }, []);
 
-  const lastActiveSession = sessions.find((s) => s.status === 'in_progress');
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Farinas';
+  const initialLetter = displayName.substring(0, 2).toUpperCase() || 'FA';
+
   const dailyChallengeScenario = scenarios.find(
     (s) => s.title.includes('Negotiation') || s.title.includes('Conflict')
   ) || scenarios[0];
@@ -45,143 +41,98 @@ export const Home3DHub: React.FC = () => {
   }
 
   return (
-    <div className="hub-3d-page">
-      {/* Central Luminous Holographic Crystal Orb Showcase */}
-      <section className="hub-hero-stage">
-        <div className="hub-orb-anchor">
-          <CrystalOrb size={300} interactive={true} />
+    <div className="hub-3d-page figma-screen-04">
+      {/* Top Bar matching Screen 04: Sparkle + RE:DO on Left, Avatar on Right */}
+      <div className="figma-top-bar">
+        <div className="figma-brand-title">
+          <span className="brand-sparkle-glyph">✨</span>
+          <span className="brand-name-bold">RE:DO</span>
         </div>
+        <Link to="/profile" className="figma-avatar-circle" title="Profile">
+          <span>{initialLetter}</span>
+          <span className="avatar-online-dot" />
+        </Link>
+      </div>
 
-        <div className="hub-hero-text">
-          <span className="hub-welcome-badge">
-            ⚡ Welcome, {user?.email?.split('@')[0] || 'Practitioner'}
-          </span>
-          <h1 className="hub-hero-title">What would you like to practise today?</h1>
-          <p className="hub-hero-subtitle">
-            Select a high-stakes conversation scenario or step into Guided Calibration. Experience the friction before you face it in reality.
-          </p>
+      {/* Greeting Header */}
+      <div className="figma-greeting-block">
+        <h2 className="figma-greeting-title">Good morning, {displayName}</h2>
+        <p className="figma-greeting-sub">Small steps create big changes</p>
+      </div>
 
-          <div className="hub-cta-button-row">
-            <button
-              className="btn btn-primary hub-primary-btn"
-              onClick={() => navigate('/scenarios')}
-            >
-              🌌 Explore Scenario Universe
-            </button>
-            {lastActiveSession ? (
-              <button
-                className="btn btn-outline hub-resume-btn"
-                onClick={() => navigate(`/session/${lastActiveSession.id}`)}
-              >
-                ▶️ Resume Last Rehearsal
-              </button>
-            ) : (
-              <button
-                className="btn btn-outline"
-                onClick={() => navigate('/scenarios')}
-              >
-                ⚡ Quick Start Simulation
-              </button>
-            )}
-          </div>
+      {/* Signature 3D Liquid Crystal Orb Showcase */}
+      <div className="figma-orb-stage">
+        <div className="figma-orb-glow-backdrop" />
+        <CrystalOrb size={260} interactive={true} />
+      </div>
+
+      {/* Today's Challenge Floating Capsule Card */}
+      <div className="figma-challenge-card">
+        <div className="challenge-card-info">
+          <span className="challenge-label-caps">Today's Challenge</span>
+          <h4 className="challenge-headline">Speak with confidence</h4>
         </div>
-      </section>
+        <button
+          className="btn-challenge-pill"
+          onClick={() => {
+            if (dailyChallengeScenario) {
+              navigate(`/scenarios/${dailyChallengeScenario.id}`);
+            } else {
+              navigate('/scenarios');
+            }
+          }}
+        >
+          Start Now
+        </button>
+      </div>
 
-      {/* Grid: Daily Challenge + Resumable Session + Quick Actions */}
-      <section className="hub-dashboard-matrix">
-        {/* Daily Challenge Card */}
-        {dailyChallengeScenario && (
-          <div className="hub-card daily-challenge-card">
-            <div className="card-top-tag">
-              <span className="daily-icon">🎯</span>
-              <span className="daily-label">Daily Curated Challenge</span>
+      {/* Quick Actions Grid matching Screen 04 */}
+      <div className="figma-quick-actions-section">
+        <h3 className="section-title-muted">Quick Actions</h3>
+        <div className="quick-actions-grid-4">
+          <button className="quick-action-item" onClick={() => navigate('/scenarios')}>
+            <div className="quick-action-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="4" fill="var(--dream-pink)" />
+                <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(-25 12 12)" />
+                <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(25 12 12)" />
+              </svg>
             </div>
-            <h3 className="challenge-title">{dailyChallengeScenario.title}</h3>
-            <p className="challenge-desc">{dailyChallengeScenario.description}</p>
-            <div className="challenge-meta">
-              <span>Counterpart: <strong>{dailyChallengeScenario.role}</strong></span>
-              <span>Difficulty: <strong>{dailyChallengeScenario.difficulty}</strong></span>
-            </div>
-            <button
-              className="btn btn-primary challenge-start-btn"
-              onClick={() => navigate('/scenarios')}
-            >
-              Accept Challenge Rehearsal →
-            </button>
-          </div>
-        )}
+            <span className="quick-action-label">Scenarios</span>
+          </button>
 
-        {/* Practice Stats Overview */}
-        <div className="hub-card stats-overview-card">
-          <div className="card-top-tag">
-            <span className="daily-icon">📊</span>
-            <span className="daily-label">Rehearsal Evolution</span>
-          </div>
-          <div className="stats-metric-row">
-            <div className="metric-box">
-              <span className="metric-number">{sessions.length}</span>
-              <span className="metric-label">Completed Sessions</span>
+          <button className="quick-action-item" onClick={() => navigate('/progress')}>
+            <div className="quick-action-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="14" width="4" height="7" rx="1" fill="var(--dream-pink)" />
+                <rect x="10" y="9" width="4" height="12" rx="1" fill="var(--dream-pink)" />
+                <rect x="17" y="4" width="4" height="17" rx="1" fill="var(--dream-pink)" />
+              </svg>
             </div>
-            <div className="metric-box">
-              <span className="metric-number">
-                {sessions.filter((s) => s.status === 'completed').length}
-              </span>
-              <span className="metric-label">Evaluated Transcripts</span>
+            <span className="quick-action-label">Progress</span>
+          </button>
+
+          <button className="quick-action-item" onClick={() => navigate('/memory-vault')}>
+            <div className="quick-action-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="16" rx="3" />
+                <path d="M7 8h10M7 12h10M7 16h6" />
+              </svg>
             </div>
-            <div className="metric-box">
-              <span className="metric-number">10</span>
-              <span className="metric-label">Universe Scenarios</span>
+            <span className="quick-action-label">Memory</span>
+          </button>
+
+          <button className="quick-action-item" onClick={() => navigate('/settings')}>
+            <div className="quick-action-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
             </div>
-          </div>
-          <p className="metric-explainer">
-            All session metrics derived from real database records in your Supabase vault.
-          </p>
-          <Link to="/progress" className="stats-link">
-            View Skill Evolution Map →
-          </Link>
+            <span className="quick-action-label">Settings</span>
+          </button>
         </div>
-      </section>
-
-      {/* Floating Curated Scenario Previews */}
-      <section className="hub-curated-previews">
-        <div className="section-header-row">
-          <div>
-            <h2 className="section-title">Featured Roleplay Chambers</h2>
-            <p className="section-sub">Immediate access to critical interpersonal simulations</p>
-          </div>
-          <Link to="/scenarios" className="see-all-link">
-            See all 10 scenarios →
-          </Link>
-        </div>
-
-        <div className="curated-preview-grid">
-          {scenarios.slice(0, 3).map((scenario) => {
-            const theme = getScenarioTheme(scenario.title);
-            return (
-              <div
-                key={scenario.id}
-                className="curated-preview-card"
-                style={{
-                  background: theme.gradientBackground,
-                  borderColor: 'rgba(255,255,255,0.1)',
-                }}
-                onClick={() => navigate('/scenarios')}
-              >
-                <div className="preview-top">
-                  <span className="badge category-badge">{scenario.category}</span>
-                  <span className="preview-env">{theme.iconSymbol} {theme.environmentBadge}</span>
-                </div>
-                <h4 className="preview-title">{scenario.title}</h4>
-                <p className="preview-desc">{scenario.description.slice(0, 110)}...</p>
-                <div className="preview-role-foot">
-                  <span>Speaking with: <strong>{scenario.role}</strong></span>
-                  <span className="card-arrow">→</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      </div>
     </div>
   );
 };

@@ -105,16 +105,16 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
     const orbGroup = new THREE.Group();
     scene.add(orbGroup);
 
-    // 3. TRANSLUCENT LIQUID VOLUME (Custom Shader with Inertial Slosh & Depth Glow)
+    // 3. TRANSLUCENT LIQUID VOLUME (Custom Shader with Curved Meniscus & Translucent Depth)
     const liquidUniforms = {
       uTime: { value: 0 },
       uSlosh: { value: new THREE.Vector2(0, 0) },
       uSloshVelocity: { value: 0 },
       uAudio: { value: 0 },
-      uLiquidLevel: { value: 0.12 }, // Water line around 55% fill
-      uColorBottom: { value: new THREE.Color(0x7e22ce) }, // Deep Crystal Purple
-      uColorTop: { value: new THREE.Color(0xf472b6) },    // Translucent Dream Pink
-      uColorFoam: { value: new THREE.Color(0xffe4f4) },   // Iridescent Pearl
+      uLiquidLevel: { value: 0.05 }, // Curved meniscus at natural center height
+      uColorBottom: { value: new THREE.Color(0xa855f7) }, // Luminous Lavender
+      uColorTop: { value: new THREE.Color(0xf472b6) },    // Translucent Vibrant Pink
+      uColorFoam: { value: new THREE.Color(0xfff0fb) },   // Specular Pearl Meniscus
     };
 
     const liquidVertexShader = `
@@ -123,7 +123,7 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       uniform vec2 uSlosh;
       uniform float uSloshVelocity;
       uniform float uAudio;
-      varying vec3 vWorldPosition;
+      varying vec3 vModelPosition;
       varying vec3 vNormal;
       varying vec3 vViewPosition;
       varying vec2 vUv;
@@ -134,17 +134,18 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
         vNormal = normalize(normalMatrix * normal);
         vec3 pos = position;
 
-        // Realistic wave physics: fluid tilt + multi-frequency ripple
-        float tilt = dot(pos.xz, uSlosh) * 0.32;
-        float ripple1 = sin(pos.x * 4.2 + uTime * 3.8) * cos(pos.z * 4.2 + uTime * 2.9) * (0.04 + uSloshVelocity * 0.08 + uAudio * 0.06);
-        float ripple2 = sin(pos.y * 7.5 + uTime * 5.5) * 0.018;
-        float wave = tilt + ripple1 + ripple2;
+        // Curved dynamic meniscus + natural liquid slosh
+        float tilt = dot(pos.xz, uSlosh) * 0.35;
+        // Natural surface meniscus curvature dipping in center
+        float meniscusCurve = -length(pos.xz) * 0.04;
+        float ripple1 = sin(pos.x * 3.6 + uTime * 3.2) * cos(pos.z * 3.6 + uTime * 2.5) * (0.035 + uSloshVelocity * 0.06 + uAudio * 0.05);
+        float ripple2 = sin(pos.y * 6.0 + uTime * 4.5) * 0.012;
+        float wave = tilt + meniscusCurve + ripple1 + ripple2;
 
         pos += normal * wave;
         vWaveDisplacement = wave;
+        vModelPosition = pos;
 
-        vec4 worldPos = modelMatrix * vec4(pos, 1.0);
-        vWorldPosition = worldPos.xyz;
         vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
         vViewPosition = -mvPos.xyz;
         gl_Position = projectionMatrix * mvPos;
@@ -159,67 +160,65 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
       uniform vec3 uColorFoam;
       uniform float uLiquidLevel;
       uniform vec2 uSlosh;
-      varying vec3 vWorldPosition;
+      varying vec3 vModelPosition;
       varying vec3 vNormal;
       varying vec3 vViewPosition;
       varying vec2 vUv;
       varying float vWaveDisplacement;
 
       void main() {
-        // Dynamic slosh surface plane
-        float surfacePlane = vWorldPosition.y - (uLiquidLevel + dot(vWorldPosition.xz, uSlosh) * 0.32 + vWaveDisplacement);
+        // Slosh plane computed in local sphere coordinates
+        float surfaceDist = vModelPosition.y - (uLiquidLevel + dot(vModelPosition.xz, uSlosh) * 0.35 + vWaveDisplacement);
 
-        // Discard air cavity above liquid
-        if (surfacePlane > 0.05) {
+        // Smooth curved meniscus transition
+        float surfaceAlpha = 1.0 - smoothstep(-0.015, 0.035, surfaceDist);
+        if (surfaceAlpha <= 0.01) {
           discard;
         }
 
         vec3 viewDir = normalize(vViewPosition);
-        float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 2.2);
+        float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 2.4);
 
         // Translucent liquid depth gradient
-        float depthFactor = clamp((vWorldPosition.y + 1.1) / 1.5, 0.0, 1.0);
+        float depthFactor = clamp((vModelPosition.y + 1.1) / 1.5, 0.0, 1.0);
         vec3 fluidColor = mix(uColorBottom, uColorTop, depthFactor);
 
         // Internal caustic light refractions
-        float caustics = sin(vUv.x * 12.0 + uTime * 2.5) * cos(vUv.y * 12.0 - uTime * 2.2);
-        caustics = pow(clamp(caustics * 0.5 + 0.5, 0.0, 1.0), 3.0) * 0.35;
-        fluidColor += vec3(caustics * 0.8, caustics * 0.45, caustics * 0.85);
+        float caustics = sin(vUv.x * 10.0 + uTime * 2.2) * cos(vUv.y * 10.0 - uTime * 1.9);
+        caustics = pow(clamp(caustics * 0.5 + 0.5, 0.0, 1.0), 2.8) * 0.4;
+        fluidColor += vec3(caustics * 0.9, caustics * 0.5, caustics * 0.95);
 
-        // Luminous foam / meniscus highlight at top boundary
-        if (surfacePlane > -0.08) {
-          float foamFactor = smoothstep(-0.08, 0.03, surfacePlane);
-          fluidColor = mix(fluidColor, uColorFoam, foamFactor * 0.85);
-        }
+        // Luminous foam / curved meniscus highlight at top surface
+        float foamFactor = smoothstep(-0.07, 0.0, surfaceDist) * (1.0 - smoothstep(0.0, 0.035, surfaceDist));
+        fluidColor = mix(fluidColor, uColorFoam, foamFactor * 0.9);
 
-        // Rim scattering
-        fluidColor += uColorTop * (fresnel * 0.6);
+        // Rim scattering inside liquid
+        fluidColor += uColorTop * (fresnel * 0.7);
 
-        // Translucent alpha: allows light transmission through fluid
-        float alpha = mix(0.72, 0.88, depthFactor);
+        // Translucent alpha: allows optical light transmission through fluid
+        float alpha = mix(0.70, 0.88, depthFactor) * surfaceAlpha;
         gl_FragColor = vec4(fluidColor, alpha);
       }
     `;
 
-    const liquidGeo = new THREE.SphereGeometry(1.06, 48, 48);
+    const liquidGeo = new THREE.SphereGeometry(1.08, 48, 48);
     const liquidMat = new THREE.ShaderMaterial({
       uniforms: liquidUniforms,
       vertexShader: liquidVertexShader,
       fragmentShader: liquidFragmentShader,
       transparent: true,
-      side: THREE.DoubleSide,
-      depthWrite: true,
+      depthWrite: false,
     });
     const liquidMesh = new THREE.Mesh(liquidGeo, liquidMat);
     liquidMesh.renderOrder = 0;
     orbGroup.add(liquidMesh);
 
-    // 4. REALISTIC TRANSPARENT CRYSTAL GLASS SHELL (Custom Shader for Guaranteed Clarity)
-    // Eliminates the opaque grey artifact caused by MeshPhysicalMaterial environment dependencies in WebViews
+    // 4. REALISTIC TRANSPARENT CRYSTAL GLASS SHELL
+    // Crystal glass: High transparency, sharp white specular glints, chromatic Fresnel rim
     const glassUniforms = {
       uTime: { value: 0 },
-      uRimColorPink: { value: new THREE.Color(0xf472b6) },
-      uRimColorLavender: { value: new THREE.Color(0xc084fc) },
+      uRimColorPink: { value: new THREE.Color(0xfbcfe8) },      // Soft crystal pink
+      uRimColorLavender: { value: new THREE.Color(0xe9d5ff) },  // Soft crystal lavender
       uHighlightColor: { value: new THREE.Color(0xffffff) },
       uLightDir: { value: new THREE.Vector3(1.5, 4.5, 3.5).normalize() },
     };
@@ -254,22 +253,24 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
         vec3 viewDir = normalize(vViewPosition);
         vec3 norm = normalize(vNormal);
 
-        // Optical Fresnel transmission: high clarity at center, radiant refraction at outer silhouette
+        // Crystal Fresnel reflection: Pure glass transparency facing camera (NdotV ~ 1.0), brilliant reflections at glancing angles
         float NdotV = max(dot(viewDir, norm), 0.0);
-        float fresnel = pow(1.0 - NdotV, 3.0);
+        float fresnel = pow(1.0 - NdotV, 3.5);
 
-        // Dual specular highlights (key light and ambient glint)
+        // Primary key specular highlight (brilliant crisp crystal light reflection)
         vec3 halfDir = normalize(uLightDir + viewDir);
-        float spec1 = pow(max(dot(norm, halfDir), 0.0), 48.0) * 1.35;
-        vec3 halfDir2 = normalize(vec3(-1.0, 1.0, 1.0) + viewDir);
-        float spec2 = pow(max(dot(norm, halfDir2), 0.0), 32.0) * 0.65;
+        float spec1 = pow(max(dot(norm, halfDir), 0.0), 64.0) * 1.6;
 
-        // Pink & lavender chromatic rim dispersion
+        // Secondary soft bounce glint (environmental ambient reflection)
+        vec3 halfDir2 = normalize(vec3(-1.2, 1.5, 1.0) + viewDir);
+        float spec2 = pow(max(dot(norm, halfDir2), 0.0), 32.0) * 0.75;
+
+        // Crystal chromatic rim dispersion (pink & lavender glancing reflections)
         vec3 rimColor = mix(uRimColorLavender, uRimColorPink, clamp(vWorldNormal.y * 0.5 + 0.5, 0.0, 1.0));
-        vec3 finalColor = rimColor * fresnel * 1.1 + uHighlightColor * (spec1 + spec2);
+        vec3 finalColor = rimColor * fresnel * 1.35 + uHighlightColor * (spec1 + spec2);
 
-        // Alpha: crystal-clear in center (0.18-0.25) so inner fluid is fully visible, crisp optical edge (0.75)
-        float alpha = clamp(0.18 + fresnel * 0.65 + spec1 * 0.8, 0.15, 0.85);
+        // Alpha: Near zero in center (0.05-0.12) for true transparent crystal clarity, crisp optical edge (0.75)
+        float alpha = clamp(0.08 + fresnel * 0.65 + spec1 * 0.9, 0.05, 0.85);
 
         gl_FragColor = vec4(finalColor, alpha);
       }
@@ -288,35 +289,27 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
     glassMesh.renderOrder = 1;
     orbGroup.add(glassMesh);
 
-    // 5. EXTERIOR WATER DROPLETS (Luminous micro-beads with highlights)
+    // 5. EXTERIOR WATER DROPLETS (Refined, luminous crystal beads matching reference)
     const dropletsGroup = new THREE.Group();
     const dropletMat = new THREE.MeshStandardMaterial({
-      color: 0xfff0f8,
+      color: 0xffffff,
       emissive: 0xf472b6,
-      emissiveIntensity: 0.35,
-      roughness: 0.1,
+      emissiveIntensity: 0.3,
+      roughness: 0.08,
       metalness: 0.1,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.85,
     });
 
-    // Outer glass radius for droplet alignment
     const dropletR = 1.28;
     const dropletCoords = [
-      { lat: 0.22, lon: 0.42, scale: 0.048 },
-      { lat: 0.32, lon: 0.44, scale: 0.032 }, // Trail bead
-      { lat: 0.45, lon: 0.46, scale: 0.022 }, // Trail bead
-      { lat: -0.18, lon: 1.15, scale: 0.055 },
-      { lat: -0.30, lon: 1.17, scale: 0.035 },
-      { lat: 0.52, lon: -0.75, scale: 0.052 },
-      { lat: -0.38, lon: -1.45, scale: 0.058 },
-      { lat: -0.50, lon: -1.43, scale: 0.028 },
-      { lat: 0.12, lon: -2.05, scale: 0.045 },
-      { lat: 0.58, lon: 2.15, scale: 0.055 },
-      { lat: -0.28, lon: 2.75, scale: 0.048 },
-      { lat: 0.38, lon: -2.75, scale: 0.042 },
-      { lat: -0.55, lon: 0.75, scale: 0.052 },
-      { lat: 0.18, lon: 1.75, scale: 0.045 },
+      { lat: 0.22, lon: 0.42, scale: 0.038 },
+      { lat: 0.32, lon: 0.44, scale: 0.024 },
+      { lat: -0.18, lon: 1.15, scale: 0.042 },
+      { lat: 0.52, lon: -0.75, scale: 0.040 },
+      { lat: -0.38, lon: -1.45, scale: 0.045 },
+      { lat: 0.12, lon: -2.05, scale: 0.035 },
+      { lat: 0.48, lon: 2.15, scale: 0.042 },
     ];
 
     const dropletGeometries: THREE.SphereGeometry[] = [];
@@ -333,21 +326,20 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
         dropletR * Math.sin(phi) * Math.sin(theta)
       );
       mesh.lookAt(0, 0, 0);
-      mesh.scale.set(1.0, 1.0, 0.6); // flattened against glass
+      mesh.scale.set(1.0, 1.0, 0.6);
       dropletsGroup.add(mesh);
     });
     dropletsGroup.renderOrder = 2;
     orbGroup.add(dropletsGroup);
 
-    // 6. DELICATE ORBITAL ACCENTS (Fine crystalline luminous threads)
-    // Scaled down in thickness and emissive power to keep focus entirely on the crystal orb
-    const ringGeo1 = new THREE.TorusGeometry(1.75, 0.007, 12, 100);
+    // 6. DELICATE ORBITAL ACCENTS (Ultra-fine luminous crystalline thread)
+    const ringGeo1 = new THREE.TorusGeometry(1.72, 0.0035, 8, 80);
     const ringMat1 = new THREE.MeshStandardMaterial({
       color: 0xf472b6,
       emissive: 0xdb2777,
-      emissiveIntensity: 0.45,
+      emissiveIntensity: 0.35,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.45,
       roughness: 0.2,
       metalness: 0.8,
     });
@@ -355,13 +347,13 @@ export const CrystalOrb: React.FC<CrystalOrbProps> = ({
     ringMesh1.rotation.x = Math.PI / 3;
     scene.add(ringMesh1);
 
-    const ringGeo2 = new THREE.TorusGeometry(1.95, 0.006, 12, 100);
+    const ringGeo2 = new THREE.TorusGeometry(1.88, 0.003, 8, 80);
     const ringMat2 = new THREE.MeshStandardMaterial({
       color: 0xc084fc,
       emissive: 0x9333ea,
-      emissiveIntensity: 0.4,
+      emissiveIntensity: 0.3,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.35,
       roughness: 0.2,
       metalness: 0.8,
     });

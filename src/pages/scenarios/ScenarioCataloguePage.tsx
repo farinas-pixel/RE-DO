@@ -12,28 +12,20 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getScenarios, createSession, addSessionMessage } from '@/services/sessionService';
+import { getScenarios, createSession, addSessionMessage, DEFAULT_SCENARIOS } from '@/services/sessionService';
 import type { Scenario, ScenarioCategory, DifficultyLevel } from '@/types/database';
 import { getScenarioTheme } from '@/lib/scenarioThemes';
 import { GuidedSetupModal, type SetupConfiguration } from '@/components/GuidedSetupModal';
 import { ScenarioDetailsModal } from '@/components/ScenarioDetailsModal';
-import { CrystalBall } from '@/components/CrystalBall';
-
-const CATEGORIES: ScenarioCategory[] = [
-  'Career & Jobs',
-  'Education',
-  'Business & Startups',
-  'Social & Communication',
-  'Everyday Life',
-];
+import { CrystalOrb } from '@/components/CrystalOrb';
 
 export function ScenarioCataloguePage() {
   const navigate = useNavigate();
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarios, setScenarios] = useState<Scenario[]>(DEFAULT_SCENARIOS);
   const [selectedCategory, setSelectedCategory] = useState<ScenarioCategory | 'All'>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Setup & Details Modal State
@@ -43,15 +35,16 @@ export function ScenarioCataloguePage() {
   const [startError, setStartError] = useState<string | null>(null);
 
   const fetchScenariosList = async () => {
-    setLoading(true);
+    // Keep DEFAULT_SCENARIOS rendered, attempt background sync with Supabase
     setError(null);
     const categoryParam = selectedCategory === 'All' ? undefined : selectedCategory;
     const { data, error: err } = await getScenarios(categoryParam);
 
     if (err) {
-      setError(err);
-    } else {
-      setScenarios(data || []);
+      // Don't wipe default scenarios on error, just keep local defaults
+      console.warn('Supabase scenario sync notice:', err);
+    } else if (data && data.length > 0) {
+      setScenarios(data);
     }
     setLoading(false);
   };
@@ -131,129 +124,70 @@ export function ScenarioCataloguePage() {
   };
 
   return (
-    <div className="catalogue-universe">
-      {/* Cinematic Brand Header with Allura cursive splash */}
-      <header className="universe-hero-section">
-        <div className="universe-brand-badge">
-          <span className="brand-allura-script">Experience it</span>
-          <span className="brand-subtext">before you face it.</span>
+    <div className="catalogue-universe mobile-screen-05-container">
+      {/* Figma Screen 05 Top Bar */}
+      <div className="figma-screen-header">
+        <div className="screen-header-titles">
+          <h2 className="screen-title-primary">Scenario Universe</h2>
+          <p className="screen-subtitle-muted">Explore real-world scenarios</p>
         </div>
-        <h1 className="universe-headline">The Scenario Universe</h1>
-        <p className="universe-subheadline">
-          Immersive, high-stakes roleplay environments engineered for definitive real-world verbal mastery.
-        </p>
+      </div>
 
-        {/* Search Bar & Global Filter Bar */}
-        <div className="universe-filter-controls">
-          <div className="universe-search-bar">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search scenarios by role, challenge, or topic..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search scenarios"
-            />
-            {searchQuery && (
-              <button
-                className="clear-search-btn"
-                onClick={() => setSearchQuery('')}
-                aria-label="Clear search"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div className="difficulty-pills" role="radiogroup" aria-label="Difficulty filter">
-            <span className="filter-label">Difficulty:</span>
-            {(['All', 'Beginner', 'Intermediate', 'Advanced'] as const).map((lvl) => (
-              <button
-                key={lvl}
-                className={`difficulty-pill ${selectedDifficulty === lvl ? 'active' : ''}`}
-                onClick={() => setSelectedDifficulty(lvl)}
-              >
-                {lvl}
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
-
-      {/* Interactive Selectable 3D Crystal Balls Strip */}
-      <section className="universe-3d-spheres-tray" aria-label="Interactive 3D Scenario Spheres">
-        <div className="spheres-scroll-row">
-          <CrystalBall
-            id="All"
-            label="All Realms"
-            colorTop="#f472b6"
-            colorBottom="#c084fc"
-            selected={selectedCategory === 'All'}
-            onSelect={() => setSelectedCategory('All')}
-          />
-          <CrystalBall
-            id="Career & Jobs"
-            label="Career"
-            colorTop="#38bdf8"
-            colorBottom="#6366f1"
-            selected={selectedCategory === 'Career & Jobs'}
-            onSelect={() => setSelectedCategory('Career & Jobs')}
-          />
-          <CrystalBall
-            id="Education"
-            label="Education"
-            colorTop="#a855f7"
-            colorBottom="#4338ca"
-            selected={selectedCategory === 'Education'}
-            onSelect={() => setSelectedCategory('Education')}
-          />
-          <CrystalBall
-            id="Business & Startups"
-            label="Business"
-            colorTop="#ec4899"
-            colorBottom="#be185d"
-            selected={selectedCategory === 'Business & Startups'}
-            onSelect={() => setSelectedCategory('Business & Startups')}
-          />
-          <CrystalBall
-            id="Social & Communication"
-            label="Social"
-            colorTop="#34d399"
-            colorBottom="#059669"
-            selected={selectedCategory === 'Social & Communication'}
-            onSelect={() => setSelectedCategory('Social & Communication')}
-          />
-          <CrystalBall
-            id="Everyday Life"
-            label="Everyday"
-            colorTop="#fbbf24"
-            colorBottom="#d97706"
-            selected={selectedCategory === 'Everyday Life'}
-            onSelect={() => setSelectedCategory('Everyday Life')}
-          />
-        </div>
-      </section>
-
-      {/* Main Categories Navigation Bar */}
-      <nav className="universe-categories-nav" aria-label="Scenario categories">
-        <div className="category-tabs-scroll">
+      {/* Search Input */}
+      <div className="universe-mobile-search-bar">
+        <span className="search-icon">🔍</span>
+        <input
+          type="text"
+          placeholder="Search scenarios..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search scenarios"
+        />
+        {searchQuery && (
           <button
-            className={`category-tab-btn ${selectedCategory === 'All' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('All')}
+            className="clear-search-btn"
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear search"
           >
-            All Categories <span className="cat-count">({scenarios.length})</span>
+            ✕
           </button>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              className={`category-tab-btn ${selectedCategory === cat ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(cat)}
-            >
-              {cat}
-            </button>
-          ))}
+        )}
+      </div>
+
+      {/* Category Pills Row: All, Work, Social, Education, Life */}
+      <div className="universe-pills-row">
+        {[
+          { key: 'All', label: 'All' },
+          { key: 'Career & Jobs', label: 'Work' },
+          { key: 'Social & Communication', label: 'Social' },
+          { key: 'Education', label: 'Education' },
+          { key: 'Everyday Life', label: 'Life' },
+        ].map((item) => (
+          <button
+            key={item.key}
+            className={`universe-pill-btn ${selectedCategory === item.key ? 'active' : ''}`}
+            onClick={() => setSelectedCategory(item.key as any)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Central 3D Crystal Orb Realm Spotlight Card */}
+      <div className="universe-realm-3d-card">
+        <div className="universe-3d-orb-container">
+          <CrystalOrb size={220} interactive={true} intensity={1.1} />
+          <div className="realm-orb-center-label">
+            <span>{selectedCategory === 'All' ? 'Work' : selectedCategory.split(' ')[0]}</span>
+          </div>
         </div>
-      </nav>
+      </div>
+
+      {/* Scenario List Heading / Card */}
+      <div className="universe-scenarios-section">
+        <div className="universe-section-title-row">
+          <span className="section-title-label">Available Scenarios ({filteredScenarios.length})</span>
+        </div>
 
       {/* Loading State */}
       {loading && (
@@ -378,6 +312,7 @@ export function ScenarioCataloguePage() {
           })}
         </main>
       )}
+      </div>
 
       {/* Screen Type #06: Scenario Details Modal */}
       <ScenarioDetailsModal
