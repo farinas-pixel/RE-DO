@@ -67,7 +67,7 @@ export const CinematicScene: React.FC<CinematicSceneProps> = ({ scrollProgress, 
     // nebulae, distant alpine mountains with snow couloirs, and foreground pines.
     // -------------------------------------------------------------------------
     const texLoader = new THREE.TextureLoader();
-    const galaxyTex = texLoader.load('/reference_galaxy.png', (tex) => {
+    const galaxyTex = texLoader.load(`${import.meta.env.BASE_URL}reference_galaxy.png`, (tex) => {
       tex.minFilter = THREE.LinearFilter;
       tex.magFilter = THREE.LinearFilter;
       tex.generateMipmaps = false;

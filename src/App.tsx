@@ -101,7 +101,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <Routes>
           {/* Cinematic 3D Website Homepage */}

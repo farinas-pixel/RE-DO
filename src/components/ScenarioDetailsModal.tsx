@@ -46,7 +46,7 @@ export const ScenarioDetailsModal: React.FC<ScenarioDetailsModalProps> = ({
         {/* Hero Photo Card */}
         <div className="details-hero-photo-container">
           <img
-            src="/workplace_meeting_ref.png"
+            src={`${import.meta.env.BASE_URL}workplace_meeting_ref.png`}
             alt={scenario.title}
             className="details-hero-photo"
             onError={(e) => {

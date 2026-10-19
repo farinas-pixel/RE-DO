@@ -256,7 +256,7 @@ export const LandingPage3D: React.FC = () => {
           {!isTutorOpen ? (
             <div className="tutor-trigger-card" onClick={() => setIsTutorOpen(true)}>
               <div className="tutor-avatar-preview">
-                <img src="/ai_tutor_character.png" alt="Maya Sharma" className="tutor-img-thumb" />
+                <img src={`${import.meta.env.BASE_URL}ai_tutor_character.png`} alt="Maya Sharma" className="tutor-img-thumb" />
                 <span className="tutor-online-glow" />
               </div>
               <div className="tutor-card-meta">
