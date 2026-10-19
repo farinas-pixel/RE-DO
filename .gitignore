@@ -33,3 +33,6 @@ test-results/
 scratch_chrome/
 test_*.png
 capture_details.spec.ts
+
+# Large archives and binaries
+*.zip
